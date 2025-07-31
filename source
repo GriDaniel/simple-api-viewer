@@ -1,179 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="bg-gray-100 font-sans">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise WebSocket Log Visualizer</title>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.16/jstree.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.16/themes/default/style.min.css">
+    <title>WebSocket Log Visualizer</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lightweight and dependency-free library for rendering tree views -->
+    <script src="https://unpkg.com/tree-view-js/dist/tree-view.min.js"></script>
     <style>
-        :root { --brand-color: #2563eb; }
-        
-        /* Modern flat design */
-        .jstree-default { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 14px;
+        :root {
+            --brand-color: #2563eb;
+            --status-connected: #22c55e;
+            --status-connecting: #f59e0b;
+            --status-disconnected: #ef4444;
         }
-        
-        .jstree-default .jstree-node { 
-            margin: 0;
-            padding: 0;
-        }
-        
-        .jstree-default .jstree-anchor { 
-            padding: 0 !important; 
-            border-radius: 0 !important;
-            background: transparent !important;
-            border: none !important;
-            line-height: 1.4;
-        }
-        
-        .jstree-default .jstree-clicked {
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-        
-        .jstree-default .jstree-hovered {
-            background: transparent !important;
-        }
-        
-        /* Modern POST node */
-        .post-node { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            color: white !important; 
-            font-weight: 600 !important;
-            border-radius: 12px !important;
-            padding: 16px 20px !important;
-            margin: 12px 0 !important;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
-            border: none !important;
-            font-size: 16px !important;
-            letter-spacing: 0.5px !important;
-        }
-        
-        /* Modern function node */
-        .function-node { 
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
-            color: white !important; 
-            font-weight: 500 !important;
-            border-radius: 10px !important;
-            padding: 12px 16px !important;
-            margin: 8px 0 !important;
-            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.25) !important;
-            border: none !important;
-            font-size: 14px !important;
-        }
-        
-        /* Modern log node */
-        .log-node {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
-            color: white !important;
-            border-radius: 8px !important;
-            padding: 10px 14px !important;
-            margin: 6px 0 !important;
-            font-weight: 500 !important;
-            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.2) !important;
-            border: none !important;
-            font-size: 13px !important;
-        }
-        
-        /* Modern log container */
-        .log-container {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 16px;
-            margin: 8px 0 8px 24px;
-            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
-            font-size: 13px;
-            line-height: 1.6;
-            color: #475569;
+        .log-tree { --tree-view-arrow-color: #94a3b8; }
+        .log-tree .tree-view-item-name { font-weight: 500; }
+        .log-tree .tree-view-item { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .log-entry {
+            background-color: #f8fafc;
+            border-left: 3px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.875rem;
+            color: #334155;
             white-space: pre-wrap;
             word-break: break-word;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            border-left: 4px solid #3b82f6;
-        }
-        
-        /* Modern tree structure */
-        #tree .jstree-container-ul { 
-            padding-left: 0;
-        }
-        
-        .jstree-default .jstree-children {
-            padding-left: 24px;
-            border-left: 2px solid #f1f5f9;
-            margin-left: 12px;
-        }
-        
-        /* Hide default tree icons */
-        .jstree-default .jstree-icon {
-            display: none;
-        }
-        
-        /* Custom expand/collapse indicators */
-        .jstree-default .jstree-ocl {
-            width: 20px;
-            height: 20px;
-            background: #6366f1;
-            border-radius: 50%;
-            margin-right: 12px;
-            position: relative;
-        }
-        
-        .jstree-default .jstree-ocl:before {
-            content: '+';
-            color: white;
-            font-weight: bold;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 12px;
-        }
-        
-        .jstree-default .jstree-open > .jstree-ocl:before {
-            content: '−';
+            margin-top: 0.5rem;
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="max-w-7xl mx-auto px-6 py-8">
-        <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+<body class="text-gray-800">
+    <div class="max-w-5xl mx-auto p-4 md:p-6">
+        <header class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
             <div class="flex items-center justify-between">
-                <div id="status" class="flex items-center space-x-2">
-                    <div class="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span class="text-sm font-medium">Connecting...</span>
+                <div id="status" class="flex items-center space-x-3">
+                    <div class="w-3 h-3 rounded-full"></div>
+                    <span class="text-sm font-medium"></span>
                 </div>
-                <div class="text-sm text-gray-500">WebSocket Auto-Monitor</div>
+                <h1 class="text-lg font-semibold text-gray-600">WebSocket Log Visualizer</h1>
             </div>
-        </div>
-        
-        <div class="bg-white rounded-lg shadow-sm border">
-            <div class="p-6 border-b">
-                <h2 class="text-lg font-semibold">POST Request Lifecycle</h2>
-            </div>
-            <div id="tree" class="p-6 min-h-96"></div>
-        </div>
+        </header>
+
+        <main id="log-container" class="space-y-4"></main>
     </div>
 
     <script>
         class LogVisualizer {
             constructor() {
-                this.buffer = [];
-                this.isBuffering = false;
-                $('#tree').jstree({ core: { data: [] } });
+                this.logContainer = document.getElementById('log-container');
+                this.statusEl = document.getElementById('status');
                 this.connect();
             }
 
             connect() {
-                if (this.ws) this.ws.close();
                 this.updateStatus('connecting');
-                
+                if (this.ws) this.ws.close();
+
                 this.ws = new WebSocket('ws://localhost:8080');
                 this.ws.onopen = () => this.updateStatus('connected');
-                this.ws.onmessage = e => this.handleMessage(e.data);
+                this.ws.onmessage = event => this.processMessage(event.data);
                 this.ws.onclose = this.ws.onerror = () => {
                     this.updateStatus('disconnected');
                     setTimeout(() => this.connect(), 3000);
@@ -181,99 +67,80 @@
             }
 
             updateStatus(state) {
-                const colors = { connected: 'green', connecting: 'yellow', disconnected: 'red' };
-                const texts = { connected: 'Connected', connecting: 'Connecting...', disconnected: 'Disconnected - Retrying...' };
-                const pulse = state !== 'disconnected' ? ' animate-pulse' : '';
+                const states = {
+                    connected: { color: 'var(--status-connected)', text: 'Connected', pulse: true },
+                    connecting: { color: 'var(--status-connecting)', text: 'Connecting...', pulse: true },
+                    disconnected: { color: 'var(--status-disconnected)', text: 'Disconnected - Retrying...', pulse: false }
+                };
+                const { color, text, pulse } = states[state];
+                const [indicator, textEl] = this.statusEl.children;
                 
-                $('#status').html(`<div class="w-3 h-3 bg-${colors[state]}-500 rounded-full${pulse}"></div><span class="text-sm font-medium text-${colors[state]}-600">${texts[state]}</span>`);
+                indicator.style.backgroundColor = color;
+                indicator.classList.toggle('animate-pulse', pulse);
+                textEl.textContent = text;
             }
 
-            handleMessage(data) {
-                if (data.includes('->') && data.toLowerCase().includes('post')) {
-                    this.postTitle = data.match(/POST\s+(.+)/i)?.[1]?.trim() || 'Request';
-                    this.buffer = [];
-                    this.isBuffering = true;
-                } else if (this.isBuffering) {
-                    this.buffer.push(data);
-                    if (data.includes('<-') && data.toLowerCase().includes('post')) {
-                        this.renderTree();
-                        this.isBuffering = false;
+            processMessage(data) {
+                try {
+                    // Assuming the incoming message is a JSON string of the log batch
+                    const logs = JSON.parse(data); 
+                    if (Array.isArray(logs)) {
+                        this.renderLogBatch(logs);
                     }
+                } catch (e) {
+                    console.error("Failed to parse message:", data, e);
+                    // Fallback for non-JSON or malformed data
+                    this.renderPlainText(data);
                 }
             }
 
-            renderTree() {
-                const groups = [];
-                const functionStack = [];
-                let counter = 1;
+            renderLogBatch(logs) {
+                const postRequest = logs.find(log => log.toLowerCase().includes('post'));
+                const postTitle = postRequest ? postRequest.match(/POST\s+(.+)/i)?.[1]?.trim() : 'Request';
+
+                const treeData = this.buildTree(logs);
                 
-                this.buffer.forEach(msg => {
-                    if (msg.includes('-> Entering:')) {
-                        // Function entry - extract full identifier
-                        const match = msg.match(/-> Entering:\s*(.+)/);
-                        const fullIdentifier = match?.[1]?.trim() || 'Function';
-                        const newGroup = { name: fullIdentifier, logs: [] };
-                        groups.push(newGroup);
-                        functionStack.push(newGroup);
-                    } else if (msg.includes('<- Exiting:')) {
-                        // Function exit - pop from stack
-                        functionStack.pop();
-                    } else if (!msg.includes('->') && !msg.includes('<-')) {
-                        // Raw log - assign to current function or create new group
-                        const currentFunction = functionStack[functionStack.length - 1];
-                        if (currentFunction) {
-                            currentFunction.logs.push(msg);
-                        } else {
-                            // No current function context
-                            if (!groups.length || !groups[groups.length - 1].name.startsWith('#')) {
-                                groups.push({ name: `#${counter++}`, logs: [] });
-                            }
-                            groups[groups.length - 1].logs.push(msg);
-                        }
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg shadow-sm border border-gray-200';
+                card.innerHTML = `
+                    <div class="p-4 border-b border-gray-200">
+                        <h2 class="text-md font-semibold text-gray-700">POST: <span class="text-blue-600">${postTitle}</span></h2>
+                    </div>
+                    <div class="p-4 log-tree"></div>
+                `;
+                
+                this.logContainer.prepend(card);
+                // Use the TreeView library to render the structured logs
+                new TreeView(treeData, card.querySelector('.log-tree'));
+            }
+
+            buildTree(logs) {
+                const tree = [];
+                let currentFunction = null;
+
+                logs.forEach(log => {
+                    const enteringMatch = log.match(/-> Entering:\s*(.+)/);
+                    if (enteringMatch) {
+                        const funcName = enteringMatch[1].trim().split('.').pop();
+                        currentFunction = { name: `<strong>${funcName}</strong>`, children: [] };
+                        tree.push(currentFunction);
+                    } else if (!log.includes('->') && !log.includes('<-')) {
+                        const targetNode = currentFunction ? currentFunction.children : tree;
+                        targetNode.push({ name: `<div class="log-entry">${log}</div>` });
                     }
                 });
-
-                const treeData = [{
-                    id: Date.now(),
-                    text: `POST ${this.postTitle}`,
-                    a_attr: { class: 'post-node' },
-                    state: { opened: true },
-                    children: groups.map((group, i) => ({
-                        id: `${Date.now()}_${i}`,
-                        text: group.name,
-                        a_attr: { class: 'function-node' },
-                        children: group.logs.length > 0 ? [{
-                            id: `${Date.now()}_${i}_logs`,
-                            text: `Logs (${group.logs.length})`,
-                            a_attr: { class: 'log-node' },
-                            children: group.logs.map((log, j) => ({
-                                id: `${Date.now()}_${i}_${j}`,
-                                text: log.length > 60 ? log.substring(0, 60) + '...' : log,
-                                a_attr: { 
-                                    class: 'log-entry',
-                                    title: log
-                                }
-                            }))
-                        }] : []
-                    }))
-                }];
-
-                $('#tree').jstree(true).settings.core.data = treeData;
-                $('#tree').jstree(true).refresh();
-                
-                // Apply custom styling after render
-                setTimeout(() => {
-                    $('.log-entry').each(function() {
-                        const fullLog = $(this).attr('title');
-                        $(this).closest('.jstree-node').html(`
-                            <div class="log-container">${fullLog}</div>
-                        `);
-                    });
-                }, 100);
+                return tree;
+            }
+            
+            renderPlainText(data) {
+                const pre = document.createElement('pre');
+                pre.className = 'log-entry';
+                pre.textContent = data;
+                this.logContainer.prepend(pre);
             }
         }
 
-        $(() => new LogVisualizer());
+        document.addEventListener('DOMContentLoaded', () => new LogVisualizer());
     </script>
 </body>
 </html>

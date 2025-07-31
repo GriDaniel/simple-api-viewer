@@ -10,10 +10,60 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --brand-color: #2563eb; }
-        .post-node { background: #dbeafe !important; color: #1e40af !important; font-weight: 600; }
-        .function-node { background: #f3f4f6 !important; color: #374151 !important; }
-        .jstree-default .jstree-node { margin: 4px 0; }
-        .jstree-default .jstree-anchor { padding: 8px 12px; border-radius: 6px; }
+        .post-node { 
+            background: linear-gradient(135deg, #1e40af, #2563eb) !important; 
+            color: white !important; 
+            font-weight: 700 !important;
+            border: 2px solid #1d4ed8 !important;
+            border-radius: 8px !important;
+            padding: 12px 16px !important;
+            margin: 8px 0 !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+        }
+        .function-node { 
+            background: linear-gradient(135deg, #374151, #4b5563) !important; 
+            color: white !important; 
+            font-weight: 600 !important;
+            border: 2px solid #374151 !important;
+            border-radius: 6px !important;
+            padding: 10px 14px !important;
+            margin: 6px 0 !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        }
+        .log-node {
+            background: #f8fafc !important;
+            color: #1e293b !important;
+            border: 2px solid #e2e8f0 !important;
+            border-radius: 4px !important;
+            padding: 8px 12px !important;
+            margin: 4px 0 !important;
+            font-family: 'Courier New', monospace !important;
+            font-size: 13px !important;
+        }
+        .jstree-default .jstree-node { margin: 8px 0; }
+        .jstree-default .jstree-anchor { 
+            padding: 0 !important; 
+            border-radius: 0 !important;
+            background: transparent !important;
+        }
+        .jstree-default .jstree-clicked {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        #tree .jstree-container-ul { padding-left: 20px; }
+        .log-container {
+            background: #f1f5f9;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #334155;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -86,8 +136,11 @@
                 let counter = 1;
                 
                 this.buffer.forEach(msg => {
-                    if (msg.includes('->') && /entering|exiting/i.test(msg)) {
-                        const funcName = msg.match(/(?:entering|exiting)\s+(.+)/i)?.[1]?.trim() || 'Function';
+                    if (msg.includes('-> Entering:')) {
+                        // Extract final function name from pattern: "-> Entering: project_module1.module2.final_func"
+                        const match = msg.match(/-> Entering:\s*(.+)/);
+                        const fullPath = match?.[1]?.trim();
+                        const funcName = fullPath ? fullPath.split('.').pop() : 'Function';
                         currentGroup = { name: funcName, logs: [] };
                         groups.push(currentGroup);
                     } else if (currentGroup && !msg.includes('->') && !msg.includes('<-')) {
@@ -107,26 +160,34 @@
                         id: `${Date.now()}_${i}`,
                         text: group.name,
                         a_attr: { class: 'function-node' },
-                        children: group.logs.map((log, j) => ({
-                            id: `${Date.now()}_${i}_${j}`,
-                            text: 'logs',
-                            a_attr: { class: 'log-display', 'data-log': log }
-                        }))
+                        children: group.logs.length > 0 ? [{
+                            id: `${Date.now()}_${i}_logs`,
+                            text: `Logs (${group.logs.length})`,
+                            a_attr: { class: 'log-node' },
+                            children: group.logs.map((log, j) => ({
+                                id: `${Date.now()}_${i}_${j}`,
+                                text: log.length > 60 ? log.substring(0, 60) + '...' : log,
+                                a_attr: { 
+                                    class: 'log-entry',
+                                    title: log
+                                }
+                            }))
+                        }] : []
                     }))
                 }];
 
                 $('#tree').jstree(true).settings.core.data = treeData;
                 $('#tree').jstree(true).refresh();
                 
+                // Apply custom styling after render
                 setTimeout(() => {
-                    $('.log-display').each(function() {
-                        $(this).closest('.jstree-node').find('.jstree-children').html(`
-                            <div class="ml-6 mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                                <div class="font-mono text-sm text-gray-800 whitespace-pre-wrap">${$(this).attr('data-log')}</div>
-                            </div>
+                    $('.log-entry').each(function() {
+                        const fullLog = $(this).attr('title');
+                        $(this).closest('.jstree-node').html(`
+                            <div class="log-container">${fullLog}</div>
                         `);
                     });
-                }, 50);
+                }, 100);
             }
         }
 

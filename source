@@ -52,11 +52,11 @@
         logsWS.onmessage = (event) => {
             const message = event.data.trim();
             
-            if (message.startsWith('-> POST')) {
+            if (message.indexOf('-> POST') !== -1) {
                 startRequest(message.replace('-> POST ', ''));
-            } else if (message.startsWith('-> Entering')) {
+            } else if (message.indexOf('-> Entering') !== -1) {
                 startFunction(message.replace('-> Entering ', ''));
-            } else if (message.startsWith('<- Exiting')) {
+            } else if (message.indexOf('<- Exiting') !== -1) {
                 endFunction();
             } else {
                 addLog(message);

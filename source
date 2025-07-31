@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PRODUCT_NAME}} - Log Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+    <style>
+        :root { --primary: #3b82f6; }
+        .primary { color: var(--primary); }
+        .primary-bg { background: var(--primary); }
+        .primary-border { border-color: var(--primary); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold">{{COMPANY_NAME}}</h1>
+            <h2 class="text-xl primary">{{PRODUCT_NAME}} Monitor</h2>
+            <div class="mt-2">
+                <span id="status" class="inline-block w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                <span id="statusText">Connected</span>
+            </div>
+        </header>
+
+        <div id="logContainer" class="bg-white rounded-lg shadow p-4">
+            <div id="emptyState" class="text-center py-12 text-gray-500">
+                <div class="text-4xl mb-2">📡</div>
+                <p>Waiting for requests...</p>
+            </div>
+            <div id="currentRequest" class="hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        const state = { currentRequest: null, functions: [] };
+        const elements = {
+            container: document.getElementById('logContainer'),
+            current: document.getElementById('currentRequest'),
+            empty: document.getElementById('emptyState'),
+            status: document.getElementById('status'),
+            statusText: document.getElementById('statusText')
+        };
+
+        const logsWS = new WebSocket('ws://localhost:8080/logs');
+
+        logsWS.onopen = () => updateStatus('connected');
+        logsWS.onclose = () => updateStatus('disconnected');
+        logsWS.onerror = () => updateStatus('error');
+
+        logsWS.onmessage = (event) => {
+            const message = event.data.trim();
+            
+            if (message.startsWith('-> POST')) {
+                startRequest(message.replace('-> POST ', ''));
+            } else if (message.startsWith('-> Entering')) {
+                startFunction(message.replace('-> Entering ', ''));
+            } else if (message.startsWith('<- Exiting')) {
+                endFunction();
+            } else {
+                addLog(message);
+            }
+        };
+
+        function updateStatus(status) {
+            const configs = {
+                connected: { class: 'bg-green-500', text: 'Connected' },
+                disconnected: { class: 'bg-red-500', text: 'Disconnected' },
+                error: { class: 'bg-red-500', text: 'Error' }
+            };
+            
+            const config = configs[status];
+            elements.status.className = `inline-block w-2 h-2 rounded-full mr-2 ${config.class}`;
+            elements.statusText.textContent = config.text;
+        }
+
+        function startRequest(endpoint) {
+            state.currentRequest = { endpoint, start: Date.now(), functions: [] };
+            state.functions = [];
+            showRequest();
+        }
+
+        function startFunction(name) {
+            const func = { name, logs: [], expanded: true };
+            state.functions.push(func);
+            state.currentFunction = func;
+            render();
+        }
+
+        function endFunction() {
+            state.currentFunction = null;
+        }
+
+        function addLog(message) {
+            if (state.currentFunction) {
+                state.currentFunction.logs.push(message);
+                render();
+            }
+        }
+
+        function showRequest() {
+            elements.empty.classList.add('hidden');
+            elements.current.classList.remove('hidden');
+            render();
+        }
+
+        function render() {
+            if (!state.currentRequest) return;
+            
+            elements.current.innerHTML = `
+                <div class="border-l-4 primary-border pl-4">
+                    <div class="font-mono font-bold mb-4">POST ${state.currentRequest.endpoint}</div>
+                    ${state.functions.map((func, i) => `
+                        <div class="ml-4 mb-3 border rounded p-3">
+                            <div class="flex justify-between items-center cursor-pointer" onclick="toggle(${i})">
+                                <span class="font-mono">${func.expanded ? '▼' : '▶'} ${func.name}</span>
+                                <span class="text-sm text-gray-500">${func.logs.length} logs</span>
+                            </div>
+                            ${func.expanded ? `
+                                <div class="mt-2 space-y-1">
+                                    ${func.logs.map(log => `
+                                        <div class="bg-gray-50 p-2 rounded text-sm font-mono">${_.escape(log)}</div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function toggle(index) {
+            state.functions[index].expanded = !state.functions[index].expanded;
+            render();
+        }
+    </script>
+</body>
+</html>

@@ -1,27 +1,19 @@
-parseEntry(data) {
-                return { message: data, timestamp: Date.now() };
-            }<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enterprise WebSocket Log Visualizer</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.16/jstree.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.16/themes/default/style.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --brand-color: #2563eb; }
-        .brand-bg { background-color: var(--brand-color); }
-        .brand-hover:hover { background-color: #1d4ed8; }
-        .jstree-default .jstree-node { margin: 4px 0; }
-        .jstree-default .jstree-anchor { padding: 8px 12px; border-radius: 6px; }
         .post-node { background: #dbeafe !important; color: #1e40af !important; font-weight: 600; }
         .function-node { background: #f3f4f6 !important; color: #374151 !important; }
-        .entry-error { background: #fef2f2 !important; color: #dc2626 !important; }
-        .entry-warn { background: #fffbeb !important; color: #d97706 !important; }
-        .entry-info { background: #eff6ff !important; color: #2563eb !important; }
+        .jstree-default .jstree-node { margin: 4px 0; }
+        .jstree-default .jstree-anchor { padding: 8px 12px; border-radius: 6px; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -44,157 +36,97 @@ parseEntry(data) {
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
         class LogVisualizer {
             constructor() {
-                this.ws = null;
                 this.buffer = [];
                 this.isBuffering = false;
-                this.reconnectInterval = null;
-                
-                $('#tree').jstree({ 
-                    core: { data: [], themes: { dots: false } },
-                    plugins: ['types']
-                });
-                
+                $('#tree').jstree({ core: { data: [] } });
                 this.connect();
             }
 
             connect() {
-                this.disconnect();
+                if (this.ws) this.ws.close();
                 this.updateStatus('connecting');
                 
                 this.ws = new WebSocket('ws://localhost:8080');
-                
-                this.ws.onopen = () => {
-                    this.updateStatus('connected');
-                    clearInterval(this.reconnectInterval);
-                };
-                
+                this.ws.onopen = () => this.updateStatus('connected');
                 this.ws.onmessage = e => this.handleMessage(e.data);
-                
                 this.ws.onclose = this.ws.onerror = () => {
                     this.updateStatus('disconnected');
-                    this.startReconnect();
+                    setTimeout(() => this.connect(), 3000);
                 };
-            }
-
-            startReconnect() {
-                if (this.reconnectInterval) return;
-                this.reconnectInterval = setInterval(() => this.connect(), 3000);
-            }
-
-            disconnect() {
-                this.ws?.close();
-                this.ws = null;
-                clearInterval(this.reconnectInterval);
-                this.reconnectInterval = null;
-                this.buffer = [];
-                this.isBuffering = false;
             }
 
             updateStatus(state) {
-                const status = $('#status');
+                const colors = { connected: 'green', connecting: 'yellow', disconnected: 'red' };
+                const texts = { connected: 'Connected', connecting: 'Connecting...', disconnected: 'Disconnected - Retrying...' };
+                const pulse = state !== 'disconnected' ? ' animate-pulse' : '';
                 
-                switch(state) {
-                    case 'connected':
-                        status.html('<div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div><span class="text-sm font-medium text-green-600">Connected</span>');
-                        break;
-                    case 'connecting':
-                        status.html('<div class="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div><span class="text-sm font-medium text-yellow-600">Connecting...</span>');
-                        break;
-                    case 'disconnected':
-                        status.html('<div class="w-3 h-3 bg-red-500 rounded-full"></div><span class="text-sm font-medium text-red-600">Disconnected - Retrying...</span>');
-                        break;
-                }
+                $('#status').html(`<div class="w-3 h-3 bg-${colors[state]}-500 rounded-full${pulse}"></div><span class="text-sm font-medium text-${colors[state]}-600">${texts[state]}</span>`);
             }
 
             handleMessage(data) {
-                console.log('Received message:', data); // Debug log
-                
-                const entry = { message: data, timestamp: Date.now(), level: 'INFO' };
-                const msg = data.toLowerCase();
-                
-                // Simple POST detection
-                if (msg.includes('-> post') || (msg.includes('post') && msg.includes('->'))) {
-                    console.log('POST START detected'); // Debug log
-                    this.buffer = [entry];
+                if (data.includes('->') && data.toLowerCase().includes('post')) {
+                    this.postTitle = data.match(/POST\s+(.+)/i)?.[1]?.trim() || 'Request';
+                    this.buffer = [];
                     this.isBuffering = true;
                 } else if (this.isBuffering) {
-                    this.buffer.push(entry);
-                    
-                    // Look for any completion indicators
-                    if (msg.includes('<-') || msg.includes('response') || msg.includes('complete') || 
-                        msg.includes('end') || msg.includes('finish') || this.buffer.length > 50) {
-                        console.log('POST END detected, rendering tree'); // Debug log
+                    this.buffer.push(data);
+                    if (data.includes('<-') && data.toLowerCase().includes('post')) {
                         this.renderTree();
                         this.isBuffering = false;
                     }
                 }
             }
 
-            parseEntry(data) {
-                try {
-                    return JSON.parse(data);
-                } catch {
-                    return { message: data, level: 'INFO', timestamp: Date.now() };
-                }
-            }
-
             renderTree() {
-                console.log('Rendering tree with', this.buffer.length, 'messages'); // Debug log
-                
-                // Simple grouping - just group by order of appearance
                 const groups = [];
                 let currentGroup = null;
+                let counter = 1;
                 
-                this.buffer.forEach((entry, index) => {
-                    const msg = entry.message;
-                    
-                    // Try to extract function/controller names from long messages
-                    const functionMatch = msg.match(/(\w+(?:Controller|Service|Repository|Handler))/i) ||
-                                        msg.match(/at\s+(\w+\.\w+)/i) ||
-                                        msg.match(/(\w+)\s*\(/);
-                    
-                    const groupName = functionMatch ? functionMatch[1] : `Step ${groups.length + 1}`;
-                    
-                    if (!currentGroup || currentGroup.name !== groupName) {
-                        currentGroup = { name: groupName, entries: [] };
+                this.buffer.forEach(msg => {
+                    if (msg.includes('->') && /entering|exiting/i.test(msg)) {
+                        const funcName = msg.match(/(?:entering|exiting)\s+(.+)/i)?.[1]?.trim() || 'Function';
+                        currentGroup = { name: funcName, logs: [] };
+                        groups.push(currentGroup);
+                    } else if (currentGroup && !msg.includes('->') && !msg.includes('<-')) {
+                        currentGroup.logs.push(msg);
+                    } else if (!currentGroup) {
+                        currentGroup = { name: `#${counter++}`, logs: [msg] };
                         groups.push(currentGroup);
                     }
-                    
-                    currentGroup.entries.push({ ...entry, index });
                 });
 
                 const treeData = [{
-                    id: `post_${Date.now()}`,
-                    text: `POST Request (${this.buffer.length} messages)`,
-                    type: 'post',
+                    id: Date.now(),
+                    text: `POST ${this.postTitle}`,
                     a_attr: { class: 'post-node' },
                     state: { opened: true },
                     children: groups.map((group, i) => ({
-                        id: `group_${i}_${Date.now()}`,
-                        text: `${group.name} (${group.entries.length} entries)`,
-                        type: 'function',
+                        id: `${Date.now()}_${i}`,
+                        text: group.name,
                         a_attr: { class: 'function-node' },
-                        children: group.entries.map((entry, j) => ({
-                            id: `entry_${i}_${j}_${Date.now()}`,
-                            text: entry.message.length > 100 ? 
-                                entry.message.substring(0, 100) + '...' : 
-                                entry.message,
-                            type: 'entry',
-                            a_attr: { 
-                                class: 'entry-info',
-                                title: entry.message // Full message on hover
-                            }
+                        children: group.logs.map((log, j) => ({
+                            id: `${Date.now()}_${i}_${j}`,
+                            text: 'logs',
+                            a_attr: { class: 'log-display', 'data-log': log }
                         }))
                     }))
                 }];
 
                 $('#tree').jstree(true).settings.core.data = treeData;
                 $('#tree').jstree(true).refresh();
-                console.log('Tree rendered successfully'); // Debug log
+                
+                setTimeout(() => {
+                    $('.log-display').each(function() {
+                        $(this).closest('.jstree-node').find('.jstree-children').html(`
+                            <div class="ml-6 mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                <div class="font-mono text-sm text-gray-800 whitespace-pre-wrap">${$(this).attr('data-log')}</div>
+                            </div>
+                        `);
+                    });
+                }, 50);
             }
         }
 

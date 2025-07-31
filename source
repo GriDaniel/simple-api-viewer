@@ -10,59 +10,131 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --brand-color: #2563eb; }
-        .post-node { 
-            background: linear-gradient(135deg, #1e40af, #2563eb) !important; 
-            color: white !important; 
-            font-weight: 700 !important;
-            border: 2px solid #1d4ed8 !important;
-            border-radius: 8px !important;
-            padding: 12px 16px !important;
-            margin: 8px 0 !important;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+        
+        /* Modern flat design */
+        .jstree-default { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
         }
-        .function-node { 
-            background: linear-gradient(135deg, #374151, #4b5563) !important; 
-            color: white !important; 
-            font-weight: 600 !important;
-            border: 2px solid #374151 !important;
-            border-radius: 6px !important;
-            padding: 10px 14px !important;
-            margin: 6px 0 !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        
+        .jstree-default .jstree-node { 
+            margin: 0;
+            padding: 0;
         }
-        .log-node {
-            background: #f8fafc !important;
-            color: #1e293b !important;
-            border: 2px solid #e2e8f0 !important;
-            border-radius: 4px !important;
-            padding: 8px 12px !important;
-            margin: 4px 0 !important;
-            font-family: 'Courier New', monospace !important;
-            font-size: 13px !important;
-        }
-        .jstree-default .jstree-node { margin: 8px 0; }
+        
         .jstree-default .jstree-anchor { 
             padding: 0 !important; 
             border-radius: 0 !important;
             background: transparent !important;
+            border: none !important;
+            line-height: 1.4;
         }
+        
         .jstree-default .jstree-clicked {
             background: transparent !important;
             box-shadow: none !important;
         }
-        #tree .jstree-container-ul { padding-left: 20px; }
+        
+        .jstree-default .jstree-hovered {
+            background: transparent !important;
+        }
+        
+        /* Modern POST node */
+        .post-node { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important; 
+            font-weight: 600 !important;
+            border-radius: 12px !important;
+            padding: 16px 20px !important;
+            margin: 12px 0 !important;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
+            border: none !important;
+            font-size: 16px !important;
+            letter-spacing: 0.5px !important;
+        }
+        
+        /* Modern function node */
+        .function-node { 
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+            color: white !important; 
+            font-weight: 500 !important;
+            border-radius: 10px !important;
+            padding: 12px 16px !important;
+            margin: 8px 0 !important;
+            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.25) !important;
+            border: none !important;
+            font-size: 14px !important;
+        }
+        
+        /* Modern log node */
+        .log-node {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+            color: white !important;
+            border-radius: 8px !important;
+            padding: 10px 14px !important;
+            margin: 6px 0 !important;
+            font-weight: 500 !important;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.2) !important;
+            border: none !important;
+            font-size: 13px !important;
+        }
+        
+        /* Modern log container */
         .log-container {
-            background: #f1f5f9;
-            border: 2px solid #cbd5e1;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
             padding: 16px;
-            margin: 8px 0;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
+            margin: 8px 0 8px 24px;
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+            font-size: 13px;
             line-height: 1.6;
-            color: #334155;
+            color: #475569;
             white-space: pre-wrap;
             word-break: break-word;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border-left: 4px solid #3b82f6;
+        }
+        
+        /* Modern tree structure */
+        #tree .jstree-container-ul { 
+            padding-left: 0;
+        }
+        
+        .jstree-default .jstree-children {
+            padding-left: 24px;
+            border-left: 2px solid #f1f5f9;
+            margin-left: 12px;
+        }
+        
+        /* Hide default tree icons */
+        .jstree-default .jstree-icon {
+            display: none;
+        }
+        
+        /* Custom expand/collapse indicators */
+        .jstree-default .jstree-ocl {
+            width: 20px;
+            height: 20px;
+            background: #6366f1;
+            border-radius: 50%;
+            margin-right: 12px;
+            position: relative;
+        }
+        
+        .jstree-default .jstree-ocl:before {
+            content: '+';
+            color: white;
+            font-weight: bold;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+        }
+        
+        .jstree-default .jstree-open > .jstree-ocl:before {
+            content: '−';
         }
     </style>
 </head>
@@ -132,22 +204,32 @@
 
             renderTree() {
                 const groups = [];
-                let currentGroup = null;
+                const functionStack = [];
                 let counter = 1;
                 
                 this.buffer.forEach(msg => {
                     if (msg.includes('-> Entering:')) {
-                        // Extract final function name from pattern: "-> Entering: project_module1.module2.final_func"
+                        // Function entry - extract full identifier
                         const match = msg.match(/-> Entering:\s*(.+)/);
-                        const fullPath = match?.[1]?.trim();
-                        const funcName = fullPath ? fullPath.split('.').pop() : 'Function';
-                        currentGroup = { name: funcName, logs: [] };
-                        groups.push(currentGroup);
-                    } else if (currentGroup && !msg.includes('->') && !msg.includes('<-')) {
-                        currentGroup.logs.push(msg);
-                    } else if (!currentGroup) {
-                        currentGroup = { name: `#${counter++}`, logs: [msg] };
-                        groups.push(currentGroup);
+                        const fullIdentifier = match?.[1]?.trim() || 'Function';
+                        const newGroup = { name: fullIdentifier, logs: [] };
+                        groups.push(newGroup);
+                        functionStack.push(newGroup);
+                    } else if (msg.includes('<- Exiting:')) {
+                        // Function exit - pop from stack
+                        functionStack.pop();
+                    } else if (!msg.includes('->') && !msg.includes('<-')) {
+                        // Raw log - assign to current function or create new group
+                        const currentFunction = functionStack[functionStack.length - 1];
+                        if (currentFunction) {
+                            currentFunction.logs.push(msg);
+                        } else {
+                            // No current function context
+                            if (!groups.length || !groups[groups.length - 1].name.startsWith('#')) {
+                                groups.push({ name: `#${counter++}`, logs: [] });
+                            }
+                            groups[groups.length - 1].logs.push(msg);
+                        }
                     }
                 });
 

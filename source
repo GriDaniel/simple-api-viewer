@@ -1,9 +1,12 @@
-<!DOCTYPE html>
+parseEntry(data) {
+                return { message: data, timestamp: Date.now() };
+            }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enterprise WebSocket Log Visualizer</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.16/jstree.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.16/themes/default/style.min.css">
@@ -25,16 +28,11 @@
     <div class="max-w-7xl mx-auto px-6 py-8">
         <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
             <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <div id="status" class="flex items-center space-x-2">
-                        <div class="w-3 h-3 bg-red-500 rounded-full"></div>
-                        <span class="text-sm font-medium">Connecting...</span>
-                    </div>
-                    <div class="text-sm text-gray-500">
-                        Port: <input id="port" type="number" value="8080" class="w-16 px-2 py-1 border rounded text-center">
-                    </div>
+                <div id="status" class="flex items-center space-x-2">
+                    <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span class="text-sm font-medium">Connecting...</span>
                 </div>
-                <div class="text-sm text-gray-500">Auto-connecting...</div>
+                <div class="text-sm text-gray-500">WebSocket Auto-Monitor</div>
             </div>
         </div>
         
@@ -46,6 +44,7 @@
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
         class LogVisualizer {
             constructor() {
@@ -54,15 +53,9 @@
                 this.isBuffering = false;
                 this.reconnectInterval = null;
                 
-                $('#port').change(() => this.connect());
                 $('#tree').jstree({ 
                     core: { data: [], themes: { dots: false } },
-                    plugins: ['types'],
-                    types: {
-                        post: { icon: 'fas fa-play-circle' },
-                        function: { icon: 'fas fa-code' },
-                        entry: { icon: 'fas fa-circle' }
-                    }
+                    plugins: ['types']
                 });
                 
                 this.connect();
@@ -70,10 +63,9 @@
 
             connect() {
                 this.disconnect();
-                const port = $('#port').val();
                 this.updateStatus('connecting');
                 
-                this.ws = new WebSocket(`ws://localhost:${port}`);
+                this.ws = new WebSocket('ws://localhost:8080');
                 
                 this.ws.onopen = () => {
                     this.updateStatus('connected');
@@ -119,15 +111,23 @@
             }
 
             handleMessage(data) {
-                const entry = this.parseEntry(data);
-                const msg = entry.message.toLowerCase();
+                console.log('Received message:', data); // Debug log
                 
-                if (msg.includes('post') && (msg.includes('start') || msg.includes('begin'))) {
+                const entry = { message: data, timestamp: Date.now(), level: 'INFO' };
+                const msg = data.toLowerCase();
+                
+                // Simple POST detection
+                if (msg.includes('-> post') || (msg.includes('post') && msg.includes('->'))) {
+                    console.log('POST START detected'); // Debug log
                     this.buffer = [entry];
                     this.isBuffering = true;
                 } else if (this.isBuffering) {
                     this.buffer.push(entry);
-                    if (msg.includes('post') && (msg.includes('end') || msg.includes('complete'))) {
+                    
+                    // Look for any completion indicators
+                    if (msg.includes('<-') || msg.includes('response') || msg.includes('complete') || 
+                        msg.includes('end') || msg.includes('finish') || this.buffer.length > 50) {
+                        console.log('POST END detected, rendering tree'); // Debug log
                         this.renderTree();
                         this.isBuffering = false;
                     }
@@ -143,42 +143,62 @@
             }
 
             renderTree() {
-                const grouped = _.groupBy(this.buffer, entry => {
+                console.log('Rendering tree with', this.buffer.length, 'messages'); // Debug log
+                
+                // Simple grouping - just group by order of appearance
+                const groups = [];
+                let currentGroup = null;
+                
+                this.buffer.forEach((entry, index) => {
                     const msg = entry.message;
-                    const match = msg.match(/(\w+(?:Controller|Service|Repository))\.(\w+)/);
-                    return match ? `${match[1]}.${match[2]}` : 'General';
+                    
+                    // Try to extract function/controller names from long messages
+                    const functionMatch = msg.match(/(\w+(?:Controller|Service|Repository|Handler))/i) ||
+                                        msg.match(/at\s+(\w+\.\w+)/i) ||
+                                        msg.match(/(\w+)\s*\(/);
+                    
+                    const groupName = functionMatch ? functionMatch[1] : `Step ${groups.length + 1}`;
+                    
+                    if (!currentGroup || currentGroup.name !== groupName) {
+                        currentGroup = { name: groupName, entries: [] };
+                        groups.push(currentGroup);
+                    }
+                    
+                    currentGroup.entries.push({ ...entry, index });
                 });
-
-                const duration = this.buffer.length > 1 ? 
-                    `${new Date(_.last(this.buffer).timestamp) - new Date(_.first(this.buffer).timestamp)}ms` : '0ms';
 
                 const treeData = [{
                     id: `post_${Date.now()}`,
-                    text: `POST Request - ${duration}`,
+                    text: `POST Request (${this.buffer.length} messages)`,
                     type: 'post',
                     a_attr: { class: 'post-node' },
                     state: { opened: true },
-                    children: Object.entries(grouped).map(([name, entries]) => ({
-                        id: `func_${name}_${Date.now()}`,
-                        text: `${name} (${entries.length} entries)`,
+                    children: groups.map((group, i) => ({
+                        id: `group_${i}_${Date.now()}`,
+                        text: `${group.name} (${group.entries.length} entries)`,
                         type: 'function',
                         a_attr: { class: 'function-node' },
-                        children: entries.map((entry, i) => ({
-                            id: `entry_${i}_${Date.now()}`,
-                            text: `[${entry.level}] ${entry.message}`,
+                        children: group.entries.map((entry, j) => ({
+                            id: `entry_${i}_${j}_${Date.now()}`,
+                            text: entry.message.length > 100 ? 
+                                entry.message.substring(0, 100) + '...' : 
+                                entry.message,
                             type: 'entry',
-                            a_attr: { class: `entry-${entry.level.toLowerCase()}` }
+                            a_attr: { 
+                                class: 'entry-info',
+                                title: entry.message // Full message on hover
+                            }
                         }))
                     }))
                 }];
 
                 $('#tree').jstree(true).settings.core.data = treeData;
                 $('#tree').jstree(true).refresh();
+                console.log('Tree rendered successfully'); // Debug log
             }
         }
 
         $(() => new LogVisualizer());
     </script>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 </body>
 </html>

@@ -28,11 +28,13 @@
                 <div class="flex items-center space-x-4">
                     <div id="status" class="flex items-center space-x-2">
                         <div class="w-3 h-3 bg-red-500 rounded-full"></div>
-                        <span class="text-sm font-medium">Disconnected</span>
+                        <span class="text-sm font-medium">Connecting...</span>
                     </div>
-                    <input id="port" type="number" value="8080" class="w-20 px-3 py-1 border rounded">
+                    <div class="text-sm text-gray-500">
+                        Port: <input id="port" type="number" value="8080" class="w-16 px-2 py-1 border rounded text-center">
+                    </div>
                 </div>
-                <button id="connect" class="brand-bg brand-hover text-white px-6 py-2 rounded font-medium">Connect</button>
+                <div class="text-sm text-gray-500">Auto-connecting...</div>
             </div>
         </div>
         
@@ -50,9 +52,9 @@
                 this.ws = null;
                 this.buffer = [];
                 this.isBuffering = false;
+                this.reconnectInterval = null;
                 
-                $('#connect').click(() => this.toggle());
-                $('#port').keypress(e => e.key === 'Enter' && this.toggle());
+                $('#port').change(() => this.connect());
                 $('#tree').jstree({ 
                     core: { data: [], themes: { dots: false } },
                     plugins: ['types'],
@@ -62,39 +64,57 @@
                         entry: { icon: 'fas fa-circle' }
                     }
                 });
-            }
-
-            toggle() {
-                this.ws ? this.disconnect() : this.connect();
+                
+                this.connect();
             }
 
             connect() {
+                this.disconnect();
                 const port = $('#port').val();
+                this.updateStatus('connecting');
+                
                 this.ws = new WebSocket(`ws://localhost:${port}`);
                 
-                this.ws.onopen = () => this.updateStatus(true);
+                this.ws.onopen = () => {
+                    this.updateStatus('connected');
+                    clearInterval(this.reconnectInterval);
+                };
+                
                 this.ws.onmessage = e => this.handleMessage(e.data);
-                this.ws.onclose = this.ws.onerror = () => this.disconnect();
+                
+                this.ws.onclose = this.ws.onerror = () => {
+                    this.updateStatus('disconnected');
+                    this.startReconnect();
+                };
+            }
+
+            startReconnect() {
+                if (this.reconnectInterval) return;
+                this.reconnectInterval = setInterval(() => this.connect(), 3000);
             }
 
             disconnect() {
                 this.ws?.close();
                 this.ws = null;
-                this.updateStatus(false);
+                clearInterval(this.reconnectInterval);
+                this.reconnectInterval = null;
                 this.buffer = [];
                 this.isBuffering = false;
             }
 
-            updateStatus(connected) {
+            updateStatus(state) {
                 const status = $('#status');
-                const btn = $('#connect');
                 
-                if (connected) {
-                    status.html('<div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div><span class="text-sm font-medium text-green-600">Connected</span>');
-                    btn.text('Disconnect').removeClass('brand-bg brand-hover').addClass('bg-red-600 hover:bg-red-700');
-                } else {
-                    status.html('<div class="w-3 h-3 bg-red-500 rounded-full"></div><span class="text-sm font-medium text-red-600">Disconnected</span>');
-                    btn.text('Connect').removeClass('bg-red-600 hover:bg-red-700').addClass('brand-bg brand-hover');
+                switch(state) {
+                    case 'connected':
+                        status.html('<div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div><span class="text-sm font-medium text-green-600">Connected</span>');
+                        break;
+                    case 'connecting':
+                        status.html('<div class="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div><span class="text-sm font-medium text-yellow-600">Connecting...</span>');
+                        break;
+                    case 'disconnected':
+                        status.html('<div class="w-3 h-3 bg-red-500 rounded-full"></div><span class="text-sm font-medium text-red-600">Disconnected - Retrying...</span>');
+                        break;
                 }
             }
 

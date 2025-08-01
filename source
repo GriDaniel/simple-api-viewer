@@ -33,22 +33,44 @@
         .panel-button { display: flex; align-items: center; justify-content: center; background: none; border: 1px solid transparent; color: #d1d5db; cursor: pointer; padding: 0.25rem; border-radius: 0.25rem; transition: background-color 0.2s ease; }
         .panel-button:hover { background-color: #374151; }
 
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px;}
         ::-webkit-scrollbar-track { background: #2d2d2d; border-radius: 3px; }
         ::-webkit-scrollbar-thumb { background: #b81830; border-radius: 3px; }
         * { scrollbar-width: thin; scrollbar-color: #b81830 #2d2d2d; }
 
-        .log-block { margin-bottom: 1rem; }
-        .log-title { color: #b81830; font-weight: bold; margin-bottom: 0.25rem; }
-        .log-content { background-color: #0e0e0e; border-radius: 4px; padding: 0.5rem; white-space: pre-wrap; font-family: monospace; font-size: 0.875rem; }
+        /* Issue 2 Fix: Use CSS Grid on the container to make children full-width */
+        #logs-content-area {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr); /* Allow content to grow */
+        }
+
+        /* Issue 1 Fix: Styling for individual, inline-prefixed log entries */
+        .log-entry {
+            display: flex;
+            align-items: baseline;
+            background-color: #0e0e0e;
+            padding: 0.2rem 0.5rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+        .log-entry:nth-child(even) { background-color: #111111; }
+        .log-prefix {
+            flex-shrink: 0;
+            width: 100px; /* Consistent width for alignment */
+            font-weight: bold;
+            color: #b81830;
+            margin-right: 1rem;
+        }
+        .log-message {
+            white-space: pre; /* Use pre for whitespace but allow wrapping */
+        }
         
-        /* New styles for WebSocket status indicator */
         .status-indicator-circle {
             width: 0.75rem; height: 0.75rem; border-radius: 9999px; transition: background-color 0.3s ease;
         }
-        .status-connecting { background-color: #f59e0b; } /* Amber */
-        .status-connected { background-color: #22c55e; } /* Green */
-        .status-disconnected { background-color: #ef4444; } /* Red */
+        .status-connecting { background-color: #f59e0b; }
+        .status-connected { background-color: #22c55e; }
+        .status-disconnected { background-color: #ef4444; }
     </style>
 </head>
 <body class="bg-[#0e0e0e] text-white h-full flex flex-col overflow-hidden">
@@ -75,7 +97,6 @@
             <div class="flex justify-between items-center mb-4 flex-shrink-0">
                 <div class="flex items-center gap-4">
                     <h2 class="text-xl font-semibold whitespace-nowrap">Live Logs</h2>
-                    <!-- New WebSocket Status Indicator -->
                     <div class="flex items-center gap-2">
                         <span class="text-sm text-gray-400">Websockets Status</span>
                         <div id="ws-status-indicator" class="status-indicator-circle status-connecting"></div>
@@ -88,7 +109,7 @@
             </div>
             <div class="panel-content-wrapper" data-panel-id="logs-panel">
                 <div class="panel-view main-content-view">
-                    <div id="logs-content-area" class="flex-grow overflow-y-auto p-4">
+                    <div id="logs-content-area" class="flex-grow overflow-auto p-0">
                         <!-- Log content and status messages will be rendered here -->
                     </div>
                 </div>
@@ -132,14 +153,6 @@
          * from the UI and uses callbacks to report its state.
          */
         class LogStreamManager {
-            /**
-             * @param {string} url - The WebSocket URL to connect to.
-             * @param {object} callbacks - An object containing callback functions for different events.
-             * @param {function} callbacks.onOpen - Called when the connection is successfully opened.
-             * @param {function} callbacks.onMessage - Called when a message is received.
-             * @param {function} callbacks.onClose - Called when the connection is closed.
-             * @param {function} callbacks.onError - Called when a connection error occurs.
-             */
             constructor(url, callbacks) {
                 this.url = url;
                 this.websocket = null;
@@ -218,13 +231,13 @@
 
             onWsClose() {
                 this.elements.statusIndicator.className = 'status-indicator-circle status-disconnected';
-                this.displaySystemMessage("CONNECTION CLOSED");
+                this.displaySystemMessage("CONNECTION CLOSED. AWAITING CONNECTION...");
             }
 
             onWsError(error) {
                 console.error("WebSocket Error:", error);
                 this.elements.statusIndicator.className = 'status-indicator-circle status-disconnected';
-                this.displaySystemMessage("CONNECTION FAILED.");
+                this.displaySystemMessage("CONNECTION FAILED. PLEASE CHECK THE SERVER.");
             }
 
             handleLogMessage(message) {
@@ -240,14 +253,20 @@
                     this.state.postMessageBuffer.push(message);
                     this.state.postRequestCounter++;
                     const title = `POST #${this.state.postRequestCounter}`;
-                    this.streamLogToView(title, this.state.postMessageBuffer.join('\n'));
+                    
+                    // Render each message from the buffer as its own line
+                    this.state.postMessageBuffer.forEach(logLine => {
+                        this.renderLogEntry(title, logLine);
+                    });
+                    
                     this.state.isInsidePostBlock = false;
                     this.state.postMessageBuffer = [];
                 } else {
                     if (this.state.isInsidePostBlock) {
                         this.state.postMessageBuffer.push(message);
                     } else {
-                        this.streamLogToView("Raw Log", message);
+                        // Render raw logs immediately
+                        this.renderLogEntry("Raw Log", message);
                     }
                 }
             }
@@ -256,21 +275,35 @@
 
             displaySystemMessage(message) {
                 this.elements.logsContentArea.innerHTML = `
-                    <div class="flex items-center justify-center h-full">
+                    <div class="flex items-center justify-center h-full p-4">
                         <p class="text-2xl font-bold text-gray-500">${message}</p>
                     </div>
                 `;
                 this.state.isLogAreaCleared = true;
             }
 
-            streamLogToView(title, content) {
-                const logBlock = document.createElement('div');
-                logBlock.className = 'log-block';
-                logBlock.innerHTML = `
-                    <div class="log-title">${title}</div>
-                    <pre class="log-content">${content}</pre>
-                `;
-                this.elements.logsContentArea.appendChild(logBlock);
+            /**
+             * @method renderLogEntry
+             * @description Creates and appends a single formatted log entry to the log viewer.
+             * @param {string} prefix - The title for the log entry (e.g., "Raw Log", "POST #1").
+             * @param {string} message - The content of the log message.
+             */
+            renderLogEntry(prefix, message) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+
+                const prefixEl = document.createElement('span');
+                prefixEl.className = 'log-prefix';
+                prefixEl.textContent = prefix;
+
+                const messageEl = document.createElement('span');
+                messageEl.className = 'log-message';
+                messageEl.textContent = message;
+
+                entry.appendChild(prefixEl);
+                entry.appendChild(messageEl);
+                
+                this.elements.logsContentArea.appendChild(entry);
                 this.elements.logsContentArea.scrollTop = this.elements.logsContentArea.scrollHeight;
             }
 

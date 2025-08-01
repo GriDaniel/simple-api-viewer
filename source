@@ -1,146 +1,330 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-gray-100 font-sans">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket Log Visualizer</title>
+    <title>Advanced Enterprise Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lightweight and dependency-free library for rendering tree views -->
-    <script src="https://unpkg.com/tree-view-js/dist/tree-view.min.js"></script>
+    <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
+
     <style>
-        :root {
-            --brand-color: #2563eb;
-            --status-connected: #22c55e;
-            --status-connecting: #f59e0b;
-            --status-disconnected: #ef4444;
+        body { 
+            -webkit-font-smoothing: antialiased; 
+            -moz-osx-font-smoothing: grayscale;
+            min-width: 450px; 
         }
-        .log-tree { --tree-view-arrow-color: #94a3b8; }
-        .log-tree .tree-view-item-name { font-weight: 500; }
-        .log-tree .tree-view-item { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-        .log-entry {
-            background-color: #f8fafc;
-            border-left: 3px solid #e2e8f0;
-            padding: 0.75rem 1rem;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-size: 0.875rem;
-            color: #334155;
-            white-space: pre-wrap;
-            word-break: break-word;
-            margin-top: 0.5rem;
+
+        .gutter { background-color: #4a5568; transition: background-color 0.2s ease, opacity 0.3s ease; }
+        .gutter.gutter-horizontal { cursor: col-resize; }
+        .gutter:hover { background-color: #b81830; }
+        .gutter-disabled { opacity: 0; pointer-events: none; }
+
+        .dashboard-panel { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .panel-content-wrapper { position: relative; flex-grow: 1; overflow: hidden; background-color: inherit; }
+        .panel-view { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 1rem 1rem 1rem 0rem; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        .main-content-view { transform: translateX(0); padding: 0; }
+        .settings-view { transform: translateX(100%); }
+        .settings-active .main-content-view { transform: translateX(-100%); }
+        .settings-active .settings-view { transform: translateX(0); }
+
+        .icon { width: 1.25rem; height: 1.25rem; }
+        .panel-button { display: flex; align-items: center; justify-content: center; background: none; border: 1px solid transparent; color: #d1d5db; cursor: pointer; padding: 0.25rem; border-radius: 0.25rem; transition: background-color 0.2s ease; }
+        .panel-button:hover { background-color: #374151; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #2d2d2d; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #b81830; border-radius: 3px; }
+        * { scrollbar-width: thin; scrollbar-color: #b81830 #2d2d2d; }
+
+        .log-block { margin-bottom: 1rem; }
+        .log-title { color: #b81830; font-weight: bold; margin-bottom: 0.25rem; }
+        .log-content { background-color: #0e0e0e; border-radius: 4px; padding: 0.5rem; white-space: pre-wrap; font-family: monospace; font-size: 0.875rem; }
+        
+        /* New styles for WebSocket status indicator */
+        .status-indicator-circle {
+            width: 0.75rem; height: 0.75rem; border-radius: 9999px; transition: background-color 0.3s ease;
         }
+        .status-connecting { background-color: #f59e0b; } /* Amber */
+        .status-connected { background-color: #22c55e; } /* Green */
+        .status-disconnected { background-color: #ef4444; } /* Red */
     </style>
 </head>
-<body class="text-gray-800">
-    <div class="max-w-5xl mx-auto p-4 md:p-6">
-        <header class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-            <div class="flex items-center justify-between">
-                <div id="status" class="flex items-center space-x-3">
-                    <div class="w-3 h-3 rounded-full"></div>
-                    <span class="text-sm font-medium"></span>
-                </div>
-                <h1 class="text-lg font-semibold text-gray-600">WebSocket Log Visualizer</h1>
-            </div>
-        </header>
+<body class="bg-[#0e0e0e] text-white h-full flex flex-col overflow-hidden">
 
-        <main id="log-container" class="space-y-4"></main>
-    </div>
+    <!-- Application Header -->
+    <header class="application-header bg-[#181818] px-3 py-2 flex items-center justify-between flex-shrink-0 z-10">
+        <div class="flex items-center whitespace-nowrap">
+            <h1 class="text-[#b81830] text-2xl font-bold">Comp</h1>
+            <span class="text-gray-400 ml-3 text-sm">Service</span>
+        </div>
+        <nav class="flex-grow flex justify-end items-center">
+            <span class="text-gray-400 mr-4 text-sm font-semibold">Pages</span>
+            <div class="flex items-center gap-2">
+                <a href="#" class="text-white bg-[#b81830] hover:bg-[#a1152a] transition-colors px-4 py-2 rounded-md text-sm font-medium">Debugger</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Dashboard Container --->
+    <main id="dashboard-container" class="flex-grow flex w-full overflow-hidden">
+
+        <!-- Logs Panel -->
+        <section id="logs-panel" class="dashboard-panel p-3 flex flex-col bg-[#181818]">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-xl font-semibold whitespace-nowrap">Live Logs</h2>
+                    <!-- New WebSocket Status Indicator -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-gray-400">Websockets Status</span>
+                        <div id="ws-status-indicator" class="status-indicator-circle status-connecting"></div>
+                    </div>
+                </div>
+                <div class="panel-controls flex items-center gap-2">
+                    <button class="settings-toggle panel-button focus:outline-none" data-panel-id="logs-panel" title="Settings"><i class="fa-solid fa-gear text-sm"></i></button>
+                    <button class="reset-layout-button panel-button hidden focus:outline-none" title="Reset Size"><i class="fa-solid fa-arrows-rotate text-sm"></i></button>
+                </div>
+            </div>
+            <div class="panel-content-wrapper" data-panel-id="logs-panel">
+                <div class="panel-view main-content-view">
+                    <div id="logs-content-area" class="flex-grow overflow-y-auto p-4">
+                        <!-- Log content and status messages will be rendered here -->
+                    </div>
+                </div>
+                <div class="panel-view settings-view">
+                    <div class="flex justify-between items-center w-full">
+                        <h3 class="text-sm font-semibold text-gray-300">Settings</h3>
+                        <button class="settings-back-button panel-button text-sm flex items-center gap-1 focus:outline-none" data-panel-id="logs-panel">← Back</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Call Stack Panel -->
+        <section id="stack-panel" class="dashboard-panel p-3 flex flex-col bg-[#0e0e0e]">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <h2 class="text-xl font-semibold whitespace-nowrap">Call Stack</h2>
+                <div class="panel-controls flex items-center gap-2">
+                    <button class="settings-toggle panel-button focus:outline-none" data-panel-id="stack-panel" title="Settings"><i class="fa-solid fa-gear text-sm"></i></button>
+                    <button class="reset-layout-button panel-button hidden focus:outline-none" title="Reset Size"><i class="fa-solid fa-arrows-rotate text-sm"></i></button>
+                </div>
+            </div>
+            <div class="panel-content-wrapper" data-panel-id="stack-panel">
+                <div class="panel-view main-content-view p-4 pl-0">
+                    <h3 class="text-gray-400">Latest API Call</h3><p class="mb-4 font-mono text-gray-300 min-h-[1.5em]"></p>
+                    <h3 class="text-gray-400">Flow</h3><p class="font-mono text-gray-300 min-h-[1.5em]"></p>
+                </div>
+                <div class="panel-view settings-view">
+                    <div class="flex justify-between items-center w-full">
+                        <h3 class="text-sm font-semibold text-gray-300">Settings</h3>
+                        <button class="settings-back-button panel-button text-sm flex items-center gap-1 focus:outline-none" data-panel-id="stack-panel">← Back</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <script>
-        class LogVisualizer {
-            constructor() {
-                this.logContainer = document.getElementById('log-container');
-                this.statusEl = document.getElementById('status');
-                this.connect();
+        /**
+         * @class LogStreamManager
+         * @description Manages the WebSocket connection for the log stream. It is decoupled
+         * from the UI and uses callbacks to report its state.
+         */
+        class LogStreamManager {
+            /**
+             * @param {string} url - The WebSocket URL to connect to.
+             * @param {object} callbacks - An object containing callback functions for different events.
+             * @param {function} callbacks.onOpen - Called when the connection is successfully opened.
+             * @param {function} callbacks.onMessage - Called when a message is received.
+             * @param {function} callbacks.onClose - Called when the connection is closed.
+             * @param {function} callbacks.onError - Called when a connection error occurs.
+             */
+            constructor(url, callbacks) {
+                this.url = url;
+                this.websocket = null;
+                this.callbacks = callbacks;
             }
 
             connect() {
-                this.updateStatus('connecting');
-                if (this.ws) this.ws.close();
-
-                this.ws = new WebSocket('ws://localhost:8080');
-                this.ws.onopen = () => this.updateStatus('connected');
-                this.ws.onmessage = event => this.processMessage(event.data);
-                this.ws.onclose = this.ws.onerror = () => {
-                    this.updateStatus('disconnected');
-                    setTimeout(() => this.connect(), 3000);
-                };
-            }
-
-            updateStatus(state) {
-                const states = {
-                    connected: { color: 'var(--status-connected)', text: 'Connected', pulse: true },
-                    connecting: { color: 'var(--status-connecting)', text: 'Connecting...', pulse: true },
-                    disconnected: { color: 'var(--status-disconnected)', text: 'Disconnected - Retrying...', pulse: false }
-                };
-                const { color, text, pulse } = states[state];
-                const [indicator, textEl] = this.statusEl.children;
-                
-                indicator.style.backgroundColor = color;
-                indicator.classList.toggle('animate-pulse', pulse);
-                textEl.textContent = text;
-            }
-
-            processMessage(data) {
-                try {
-                    // Assuming the incoming message is a JSON string of the log batch
-                    const logs = JSON.parse(data); 
-                    if (Array.isArray(logs)) {
-                        this.renderLogBatch(logs);
-                    }
-                } catch (e) {
-                    console.error("Failed to parse message:", data, e);
-                    // Fallback for non-JSON or malformed data
-                    this.renderPlainText(data);
-                }
-            }
-
-            renderLogBatch(logs) {
-                const postRequest = logs.find(log => log.toLowerCase().includes('post'));
-                const postTitle = postRequest ? postRequest.match(/POST\s+(.+)/i)?.[1]?.trim() : 'Request';
-
-                const treeData = this.buildTree(logs);
-                
-                const card = document.createElement('div');
-                card.className = 'bg-white rounded-lg shadow-sm border border-gray-200';
-                card.innerHTML = `
-                    <div class="p-4 border-b border-gray-200">
-                        <h2 class="text-md font-semibold text-gray-700">POST: <span class="text-blue-600">${postTitle}</span></h2>
-                    </div>
-                    <div class="p-4 log-tree"></div>
-                `;
-                
-                this.logContainer.prepend(card);
-                // Use the TreeView library to render the structured logs
-                new TreeView(treeData, card.querySelector('.log-tree'));
-            }
-
-            buildTree(logs) {
-                const tree = [];
-                let currentFunction = null;
-
-                logs.forEach(log => {
-                    const enteringMatch = log.match(/-> Entering:\s*(.+)/);
-                    if (enteringMatch) {
-                        const funcName = enteringMatch[1].trim().split('.').pop();
-                        currentFunction = { name: `<strong>${funcName}</strong>`, children: [] };
-                        tree.push(currentFunction);
-                    } else if (!log.includes('->') && !log.includes('<-')) {
-                        const targetNode = currentFunction ? currentFunction.children : tree;
-                        targetNode.push({ name: `<div class="log-entry">${log}</div>` });
-                    }
-                });
-                return tree;
-            }
-            
-            renderPlainText(data) {
-                const pre = document.createElement('pre');
-                pre.className = 'log-entry';
-                pre.textContent = data;
-                this.logContainer.prepend(pre);
+                this.websocket = new WebSocket(this.url);
+                this.websocket.onopen = () => this.callbacks.onOpen();
+                this.websocket.onmessage = (event) => this.callbacks.onMessage(event.data);
+                this.websocket.onerror = (error) => this.callbacks.onError(error);
+                this.websocket.onclose = () => this.callbacks.onClose();
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => new LogVisualizer());
+        /**
+         * @class DashboardManager
+         * @description Manages the behavior and state of the enterprise dashboard.
+         */
+        class DashboardManager {
+            constructor() {
+                this.elements = {
+                    container: document.getElementById('dashboard-container'),
+                    panels: document.querySelectorAll('.dashboard-panel'),
+                    resetButtons: document.querySelectorAll('.reset-layout-button'),
+                    logsContentArea: document.getElementById('logs-content-area'),
+                    statusIndicator: document.getElementById('ws-status-indicator'),
+                    gutter: null,
+                };
+
+                this.state = {
+                    isLayoutCustomized: false,
+                    isInsidePostBlock: false,
+                    isLogAreaCleared: true,
+                    postMessageBuffer: [],
+                    postRequestCounter: 0,
+                };
+
+                this.DEFAULT_SIZES = [65, 35];
+                this.MIN_CONTAINER_WIDTH = 700;
+
+                this.splitInstance = Split(['#logs-panel', '#stack-panel'], {
+                    sizes: this.DEFAULT_SIZES, minSize: 320, gutterSize: 8,
+                    onDragStart: () => this.elements.panels.forEach(p => p.classList.remove('dashboard-panel')),
+                    onDrag: () => this.checkLayout(),
+                    onDragEnd: () => this.elements.panels.forEach(p => p.classList.add('dashboard-panel')),
+                });
+                
+                this.logStream = new LogStreamManager("ws://127.0.0.1:8000/ws/logs", {
+                    onOpen: this.onWsOpen.bind(this),
+                    onMessage: this.handleLogMessage.bind(this),
+                    onClose: this.onWsClose.bind(this),
+                    onError: this.onWsError.bind(this),
+                });
+
+                this.initialize();
+            }
+
+            initialize() {
+                this.elements.gutter = this.elements.container.querySelector('.gutter');
+                this.elements.container.addEventListener('click', this.handleDelegatedClick.bind(this));
+                
+                new ResizeObserver(entries => this.handleResize(entries[0].contentRect.width)).observe(this.elements.container);
+                this.handleResize(this.elements.container.clientWidth);
+
+                this.displaySystemMessage("CONNECTING...");
+                this.logStream.connect();
+            }
+            
+            // --- WebSocket Event Handlers ---
+
+            onWsOpen() {
+                this.elements.statusIndicator.className = 'status-indicator-circle status-connected';
+                this.displaySystemMessage("CONNECTION ESTABLISHED. WAITING FOR LOGS...");
+            }
+
+            onWsClose() {
+                this.elements.statusIndicator.className = 'status-indicator-circle status-disconnected';
+                this.displaySystemMessage("CONNECTION CLOSED");
+            }
+
+            onWsError(error) {
+                console.error("WebSocket Error:", error);
+                this.elements.statusIndicator.className = 'status-indicator-circle status-disconnected';
+                this.displaySystemMessage("CONNECTION FAILED.");
+            }
+
+            handleLogMessage(message) {
+                if (this.state.isLogAreaCleared) {
+                    this.elements.logsContentArea.innerHTML = '';
+                    this.state.isLogAreaCleared = false;
+                }
+
+                if (message.includes("-> POST")) {
+                    this.state.isInsidePostBlock = true;
+                    this.state.postMessageBuffer.push(message);
+                } else if (message.includes("<- POST")) {
+                    this.state.postMessageBuffer.push(message);
+                    this.state.postRequestCounter++;
+                    const title = `POST #${this.state.postRequestCounter}`;
+                    this.streamLogToView(title, this.state.postMessageBuffer.join('\n'));
+                    this.state.isInsidePostBlock = false;
+                    this.state.postMessageBuffer = [];
+                } else {
+                    if (this.state.isInsidePostBlock) {
+                        this.state.postMessageBuffer.push(message);
+                    } else {
+                        this.streamLogToView("Raw Log", message);
+                    }
+                }
+            }
+
+            // --- UI Update Methods ---
+
+            displaySystemMessage(message) {
+                this.elements.logsContentArea.innerHTML = `
+                    <div class="flex items-center justify-center h-full">
+                        <p class="text-2xl font-bold text-gray-500">${message}</p>
+                    </div>
+                `;
+                this.state.isLogAreaCleared = true;
+            }
+
+            streamLogToView(title, content) {
+                const logBlock = document.createElement('div');
+                logBlock.className = 'log-block';
+                logBlock.innerHTML = `
+                    <div class="log-title">${title}</div>
+                    <pre class="log-content">${content}</pre>
+                `;
+                this.elements.logsContentArea.appendChild(logBlock);
+                this.elements.logsContentArea.scrollTop = this.elements.logsContentArea.scrollHeight;
+            }
+
+            handleDelegatedClick(event) {
+                const button = event.target.closest('button');
+                if (!button) return;
+                const actionMap = {
+                    'reset-layout-button': () => this.resetLayout(),
+                    'settings-toggle': () => this.toggleSettingsView(button),
+                    'settings-back-button': () => this.toggleSettingsView(button),
+                };
+                for (const className in actionMap) {
+                    if (button.classList.contains(className)) {
+                        actionMap[className]();
+                        break;
+                    }
+                }
+            }
+
+            checkLayout() {
+                const currentSizes = this.splitInstance.getSizes();
+                const needsReset = Math.abs(currentSizes[0] - this.DEFAULT_SIZES[0]) > 1;
+                if (needsReset !== this.state.isLayoutCustomized) {
+                    this.state.isLayoutCustomized = needsReset;
+                    this.elements.resetButtons.forEach(btn => btn.classList.toggle('hidden', !needsReset));
+                }
+            }
+            
+            handleResize(width) {
+                if (width < this.MIN_CONTAINER_WIDTH) {
+                    if (!this.elements.gutter.classList.contains('gutter-disabled')) {
+                        this.elements.gutter.classList.add('gutter-disabled');
+                        this.resetLayout();
+                    }
+                } else {
+                    this.elements.gutter.classList.remove('gutter-disabled');
+                }
+            }
+
+            resetLayout() {
+                this.elements.panels.forEach(p => p.classList.add('dashboard-panel'));
+                this.splitInstance.setSizes(this.DEFAULT_SIZES);
+                this.state.isLayoutCustomized = false;
+                this.elements.resetButtons.forEach(btn => btn.classList.add('hidden'));
+            }
+
+            toggleSettingsView(button) {
+                const panelId = button.dataset.panelId;
+                const wrapper = document.querySelector(`.panel-content-wrapper[data-panel-id="${panelId}"]`);
+                if (wrapper) wrapper.classList.toggle('settings-active');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => new DashboardManager());
     </script>
 </body>
 </html>

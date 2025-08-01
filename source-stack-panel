@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Enterprise Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
+
+    <style>
+        body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+        /* Consistent styling for dynamically generated log entries */
+        .log-entry { border-bottom: 1px solid #2d2d2d; height: 1.75rem; }
+
+        .gutter { background-color: #4a5568; transition: background-color 0.2s ease; }
+        .gutter.gutter-horizontal { cursor: col-resize; }
+        .gutter:hover { background-color: #b81830; }
+
+        .dashboard-panel { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .panel-content-wrapper { position: relative; flex-grow: 1; overflow: hidden; background-color: inherit; }
+        .panel-view { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 1rem 1rem 1rem 0rem; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* Animation classes for main content and settings views */
+        .main-content-view { transform: translateX(0); padding: 0; }
+        .settings-view { transform: translateX(100%); }
+        .settings-active .main-content-view { transform: translateX(-100%); }
+        .settings-active .settings-view { transform: translateX(0); }
+
+        /* Standardized UI button and icon styling */
+        .icon { width: 1.25rem; height: 1.25rem; }
+        .panel-button { display: flex; align-items: center; justify-content: center; background: none; border: 1px solid transparent; color: #d1d5db; cursor: pointer; padding: 0.25rem; border-radius: 0.25rem; transition: background-color 0.2s ease; }
+        .panel-button:hover { background-color: #374151; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #2d2d2d; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #b81830; border-radius: 3px; }
+        * { scrollbar-width: thin; scrollbar-color: #b81830 #2d2d2d; }
+    </style>
+</head>
+<body class="bg-[#0e0e0e] text-white h-full flex flex-col overflow-hidden">
+
+    <!-- Application Header -->
+    <header class="application-header bg-[#181818] px-3 py-2 flex items-center justify-between flex-shrink-0 z-10">
+        <div class="flex items-center whitespace-nowrap">
+            <h1 class="text-[#b81830] text-2xl font-bold">Lincoln Electric</h1>
+            <span class="text-gray-400 ml-3 text-sm">PythonX.WSL Laser Service</span>
+        </div>
+
+        <!-- Right side: Navigation -->
+        <nav class="flex-grow flex justify-end items-center">
+            <span class="text-gray-400 mr-4 text-sm font-semibold">Pages</span>
+            
+            <!-- Wrapper for navigation buttons -->
+            <div class="flex items-center gap-2">
+                <a href="#" class="text-white bg-[#b81830] hover:bg-[#a1152a] transition-colors px-4 py-2 rounded-md text-sm font-medium">Debugger</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Dashboard Container --->
+    <main id="dashboard-container" class="flex-grow flex w-full overflow-hidden">
+
+        <!-- Logs Panel -->
+        <section id="logs-panel" class="dashboard-panel p-3 flex flex-col bg-[#181818]">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <h2 class="text-xl font-semibold whitespace-nowrap">Live Logs</h2>
+                <div class="panel-controls flex items-center gap-2">
+                    <button class="settings-toggle panel-button focus:outline-none" data-panel-id="logs-panel" title="Settings">
+                       <i class="fa-solid fa-gear text-sm"></i>
+                    </button>
+                    <button class="reset-layout-button panel-button hidden focus:outline-none" title="Reset Size">
+                        <i class="fa-solid fa-arrows-rotate text-sm"></i>
+                    </button>
+                    <button class="panel-toggle panel-button text-2xl w-8 h-8 focus:outline-none" data-panel-id="logs-panel" title="Toggle Panel">-</button>
+                </div>
+            </div>
+            <div class="panel-content-wrapper" data-panel-id="logs-panel">
+                <div class="panel-view main-content-view">
+                    <div class="flex-grow overflow-y-auto p-4"></div>
+                </div>
+                <div class="panel-view settings-view">
+                    <div class="flex justify-between items-center w-full">
+                        <h3 class="text-sm font-semibold text-gray-300">Settings</h3>
+                        <button class="settings-back-button panel-button text-sm flex items-center gap-1 focus:outline-none" data-panel-id="logs-panel">
+                            ← Back
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Call Stack Panel -->
+        <section id="stack-panel" class="dashboard-panel p-3 flex flex-col bg-[#0e0e0e]">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <h2 class="text-xl font-semibold whitespace-nowrap">Call Stack</h2>
+                <div class="panel-controls flex items-center gap-2">
+                    <button class="settings-toggle panel-button focus:outline-none" data-panel-id="stack-panel" title="Settings">
+                        <i class="fa-solid fa-gear text-sm"></i>
+                    </button>
+                    <button class="reset-layout-button panel-button hidden focus:outline-none" title="Reset Size">
+                        <i class="fa-solid fa-arrows-rotate text-sm"></i>
+                    </button>
+                    <button class="panel-toggle panel-button text-2xl w-8 h-8 focus:outline-none" data-panel-id="stack-panel" title="Toggle Panel">-</button>
+                </div>
+            </div>
+            <div class="panel-content-wrapper" data-panel-id="stack-panel">
+                <div class="panel-view main-content-view p-4 pl-0">
+                    <h3 class="text-gray-400">Latest API Call</h3>
+                    <p class="mb-4 font-mono text-gray-300 min-h-[1.5em]"></p>
+                    <h3 class="text-gray-400">Flow</h3>
+                    <p class="font-mono text-gray-300 min-h-[1.5em]"></p>
+                </div>
+                <div class="panel-view settings-view">
+                    <div class="flex justify-between items-center w-full">
+                        <h3 class="text-sm font-semibold text-gray-300">Settings</h3>
+                        <button class="settings-back-button panel-button text-sm flex items-center gap-1 focus:outline-none" data-panel-id="stack-panel">
+                           ← Back
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        /**
+         * @class DashboardManager
+         * @description Manages the behavior and state of the enterprise dashboard, including panel resizing,
+         * content generation, and user interactions. This class is designed to be self-contained and
+         * efficient, leveraging vanilla JavaScript for a lightweight footprint.
+         */
+        class DashboardManager {
+            /**
+             * @constructor
+             * @description Initializes the DashboardManager by caching DOM elements, setting initial state,
+             * configuring the Split.js instance, and attaching necessary event listeners.
+             */
+            constructor() {
+                this.elements = {
+                    container: document.getElementById('dashboard-container'),
+                    panels: document.querySelectorAll('.dashboard-panel'),
+                    resetButtons: document.querySelectorAll('.reset-layout-button'),
+                    logsContent: document.querySelector('#logs-panel .main-content-view > div'),
+                };
+
+                this.state = {
+                    logsPanelMinimized: false,
+                    stackPanelMinimized: false,
+                };
+
+                this.DEFAULT_SIZES = [65, 35];
+
+                this.splitInstance = Split(['#logs-panel', '#stack-panel'], {
+                    sizes: this.DEFAULT_SIZES,
+                    minSize: 320,
+                    gutterSize: 8,
+                    onDrag: () => this.checkLayout(),
+                    onDragEnd: () => this.elements.panels.forEach(p => p.classList.add('dashboard-panel')),
+                });
+
+                this.initialize();
+            }
+
+            /**
+             * @method initialize
+             * @description Performs initial setup tasks such as generating log entries, observing content
+             * resizing, and setting up the main event listener for delegated clicks.
+             */
+            initialize() {
+                this.generateLogEntries();
+                new ResizeObserver(() => this.generateLogEntries()).observe(this.elements.logsContent);
+                this.elements.container.addEventListener('click', this.handleDelegatedClick.bind(this));
+            }
+
+            /**
+             * @method generateLogEntries
+             * @description Dynamically generates and prepends log entry elements to the logs panel based on
+             * the available vertical space. Uses a DocumentFragment for efficient batch DOM manipulation.
+             */
+            generateLogEntries() {
+                const fragment = document.createDocumentFragment();
+                const entryCount = Math.ceil(this.elements.logsContent.clientHeight / 28) + 20;
+
+                for (let i = 0; i < entryCount; i++) {
+                    const logEntry = document.createElement('div');
+                    logEntry.className = 'log-entry';
+                    fragment.appendChild(logEntry);
+                }
+
+                this.elements.logsContent.innerHTML = '';
+                this.elements.logsContent.appendChild(fragment);
+            }
+            
+            /**
+             * @method handleDelegatedClick
+             * @param {Event} event - The click event object.
+             * @description Handles all click events within the dashboard container using event delegation.
+             * This approach improves performance and simplifies event management by having a single
+             * listener.
+             */
+            handleDelegatedClick(event) {
+                const button = event.target.closest('button');
+                if (!button) return;
+
+                const actionMap = {
+                    'panel-toggle': () => this.togglePanelSize(button),
+                    'reset-layout-button': () => this.resetLayout(),
+                    'settings-toggle': () => this.toggleSettingsView(button),
+                    'settings-back-button': () => this.toggleSettingsView(button),
+                };
+
+                for (const className in actionMap) {
+                    if (button.classList.contains(className)) {
+                        actionMap[className]();
+                        break;
+                    }
+                }
+            }
+
+            /**
+             * @method checkLayout
+             * @description Checks the current layout of the panels during a drag operation. It shows or
+             * hides the reset button based on whether the layout has deviated from the default.
+             */
+            checkLayout() {
+                this.elements.panels.forEach(p => p.classList.remove('dashboard-panel'));
+                const currentSizes = this.splitInstance.getSizes();
+                const needsReset = Math.round(currentSizes[0]) !== this.DEFAULT_SIZES[0];
+                this.elements.resetButtons.forEach(btn => btn.classList.toggle('hidden', !needsReset));
+                
+                if(this.state.logsPanelMinimized || this.state.stackPanelMinimized) {
+                    this.state.logsPanelMinimized = false;
+                    this.state.stackPanelMinimized = false;
+                    this.updateToggleButtons();
+                }
+            }
+
+            /**
+             * @method resetLayout
+             * @description Resets the panels to their default sizes and updates the UI accordingly.
+             * It also ensures that the toggle buttons are in their correct state.
+             */
+            resetLayout() {
+                this.elements.panels.forEach(p => p.classList.add('dashboard-panel'));
+                this.splitInstance.setSizes(this.DEFAULT_SIZES);
+                this.elements.resetButtons.forEach(btn => btn.classList.add('hidden'));
+                
+                this.state.logsPanelMinimized = false;
+                this.state.stackPanelMinimized = false;
+                this.updateToggleButtons();
+            }
+
+            /**
+             * @method togglePanelSize
+             * @param {HTMLElement} button - The button element that triggered the toggle.
+             * @description Toggles the size of a panel between a minimized and a default state.
+             * It intelligently handles which panel to collapse and updates the UI.
+             */
+            togglePanelSize(button) {
+                const panelId = button.dataset.panelId;
+                const isLogsPanel = panelId === 'logs-panel';
+                const panelIndex = isLogsPanel ? 0 : 1;
+                const isCurrentlyMinimized = isLogsPanel ? this.state.logsPanelMinimized : this.state.stackPanelMinimized;
+
+                this.elements.panels.forEach(p => p.classList.add('dashboard-panel'));
+
+                if (isCurrentlyMinimized) {
+                    this.resetLayout();
+                } else {
+                    this.splitInstance.collapse(panelIndex);
+                    this.state.logsPanelMinimized = isLogsPanel;
+                    this.state.stackPanelMinimized = !isLogsPanel;
+                    this.updateToggleButtons();
+                }
+            }
+            
+            /**
+             * @method updateToggleButtons
+             * @description Updates the text content of the panel toggle buttons to reflect their
+             * current state (either '+' for minimized or '-' for expanded).
+             */
+            updateToggleButtons() {
+                document.querySelector('.panel-toggle[data-panel-id="logs-panel"]').textContent = this.state.logsPanelMinimized ? '+' : '-';
+                document.querySelector('.panel-toggle[data-panel-id="stack-panel"]').textContent = this.state.stackPanelMinimized ? '+' : '-';
+            }
+
+            /**
+             * @method toggleSettingsView
+             * @param {HTMLElement} button - The button that triggered the settings view toggle.
+             * @description Toggles the visibility of the settings view for a specific panel by
+             * adding or removing the 'settings-active' class.
+             */
+            toggleSettingsView(button) {
+                const panelId = button.dataset.panelId;
+                const wrapper = document.querySelector(`.panel-content-wrapper[data-panel-id="${panelId}"]`);
+                if (wrapper) {
+                    wrapper.classList.toggle('settings-active');
+                }
+            }
+        }
+
+        // Initialize the DashboardManager once the DOM is fully loaded.
+        document.addEventListener('DOMContentLoaded', () => new DashboardManager());
+    </script>
+</body>
+</html>

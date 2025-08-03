@@ -49,27 +49,38 @@
         .status-connected { background-color: #22c55e; }
         .status-disconnected { background-color: #ef4444; }
 
-        /* --- Final styles for Call Stack Visualizer --- */
+        /* --- Updated styles for Call Stack Visualizer --- */
         #call-stack-flow { overflow-y: auto; overflow-x: hidden; }
         .call-stack-title { color: #9ca3af; font-weight: bold; text-transform: uppercase; font-size: 0.9rem; }
         
         .call-stack-item { border: 1px solid #2d2d2d; border-radius: 6px; margin-bottom: 6px; background-color: #181818; border-left: 4px solid #b81830; cursor: pointer; transition: background-color 0.2s ease; padding: 10px; }
         .call-stack-item:hover { background-color: #2d2d2d; }
         
-        /* FIX: Changed alignment and added gap for better multi-line handling */
-        .call-stack-header { display: flex; align-items: flex-start; gap: 0.75rem; }
-        .flow-prefix { color: #6b7280; font-weight: 600; /* margin-right removed in favor of gap */ }
+        /* FIXED: Better flex layout for natural text wrapping */
+        .call-stack-header { 
+            display: flex; 
+            align-items: flex-start; 
+            gap: 0.75rem; 
+            margin-bottom: 4px; /* Add some separation from footer */
+        }
+        .flow-prefix { 
+            color: #6b7280; 
+            font-weight: 600; 
+            flex-shrink: 0; /* Prevent prefix from shrinking */
+        }
         
-        /* FIX: Added min-width and word-break to allow wrapping in flex container */
+        /* FIXED: Natural text wrapping instead of aggressive breaking */
         .call-stack-name { 
             font-weight: 600; 
             color: #e5e7eb; 
-            overflow-wrap: break-word; 
-            word-break: break-all; /* More aggressive breaking for long names */
-            min-width: 0; /* Allows flex item to shrink below its content size */
+            flex: 1; /* Take remaining space */
+            overflow-wrap: break-word; /* Break long words naturally */
+            word-wrap: break-word; /* Legacy support */
+            line-height: 1.4; /* Better line spacing for multi-line text */
+            /* Removed word-break: break-all for more natural breaking */
         }
 
-        .call-stack-footer { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-top: 4px; }
+        .call-stack-footer { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; }
         .call-stack-duration { color: #9ca3af; font-size: 0.8rem; flex-shrink: 0; }
         .expand-icon { transition: transform 0.2s ease; color: #6b7280; flex-shrink: 0; width: 16px; height: 16px; }
         .expand-icon.expanded { transform: rotate(90deg); }
@@ -289,7 +300,6 @@
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'call-stack-item';
                 
-                // FIX: Changed the innerHTML generation to remove the now-unnecessary margin from the prefix span
                 itemDiv.innerHTML = `
                     <div class="call-stack-header">
                         <span class="flow-prefix">${prefix}</span>

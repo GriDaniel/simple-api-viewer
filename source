@@ -76,8 +76,8 @@
         .call-stack-nav-button { background: none; border: none; color: #6b7280; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: color 0.2s ease; }
         .call-stack-nav-button:not(:disabled):hover { color: #d1d5db; }
         .call-stack-nav-button:disabled { color: #374151; cursor: not-allowed; }
-        #custom-tooltip { position: fixed; display: none; background-color: #a1152a; color: white; padding: 8px 12px; border-radius: 6px; font-size: 14px; z-index: 1000; pointer-events: none; max-width: 400px; text-align: center; }
-        #custom-tooltip .tooltip-arrow { content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #a1152a; }
+        #custom-tooltip { position: fixed; display: none; background-color: #1f2937; color: white; padding: 6px 10px; border-radius: 6px; font-size: 12px; z-index: 1000; pointer-events: none; max-width: 400px; text-align: left; white-space: normal; overflow-wrap: break-word; }
+        #custom-tooltip .tooltip-arrow { content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #1f2937; }
     </style>
 </head>
 <body class="bg-[#0e0e0e] text-white h-full flex flex-col overflow-hidden">
@@ -137,7 +137,6 @@
                     ['callStackFlow', document.getElementById('call-stack-flow')], ['prevCallBtn', document.getElementById('prev-call-btn')],
                     ['nextCallBtn', document.getElementById('next-call-btn')], ['tooltip', document.getElementById('custom-tooltip')]
                 ]);
-                this.throttledCheckLayout = this.throttle(this.checkLayout, 50);
                 this.handleTooltipHide = this.handleTooltipHide.bind(this);
                 this.init();
             }
@@ -152,24 +151,12 @@
                 this.updateNavButtons();
             }
 
-            throttle(func, limit) {
-                let inThrottle;
-                return (...args) => {
-                    if (!inThrottle) {
-                        func.apply(this, args);
-                        inThrottle = true;
-                        setTimeout(() => inThrottle = false, limit);
-                    }
-                };
-            }
-
             setupSplitLayout() {
                 this.splitInstance = Split(['#logs-panel', '#stack-panel'], { 
                     sizes: this.config.defaultSizes, 
                     minSize: 320, 
                     gutterSize: 8, 
-                    onDrag: this.throttledCheckLayout,
-                    onDragEnd: this.checkLayout
+                    onDragEnd: this.checkLayout.bind(this)
                 });
             }
 
@@ -343,25 +330,20 @@
             handleTooltipShow(e) {
                 const target = e.target.closest('[data-full-text]');
                 if (!target || target.scrollWidth <= target.clientWidth) return;
-
                 const tooltip = this.elements.get('tooltip');
                 tooltip.querySelector('.tooltip-text').textContent = target.dataset.fullText;
-                
-                const rect = target.getBoundingClientRect();
                 tooltip.style.display = 'block';
-
+                const rect = target.getBoundingClientRect();
                 const top = rect.top - tooltip.offsetHeight - 10;
                 const left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
-                
-                tooltip.style.left = `${left}px`;
-                tooltip.style.top = `${top}px`;
-                
+                tooltip.style.left = `${Math.max(5, left)}px`;
+                tooltip.style.top = `${Math.max(5, top)}px`;
                 target.addEventListener('mouseleave', this.handleTooltipHide, { once: true });
             }
 
             handleTooltipHide() { this.elements.get('tooltip').style.display = 'none'; }
 
-            checkLayout = () => {
+            checkLayout() {
                 const isCustomized = Math.abs(this.splitInstance.getSizes()[0] - this.config.defaultSizes[0]) > 1;
                 document.querySelectorAll('.reset-layout-button').forEach(btn => btn.classList.toggle('hidden', !isCustomized));
             }

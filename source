@@ -139,7 +139,7 @@
         
         .call-stack-logs-title {
             color: #9ca3af;
-            font-size: 0.75rem;
+            font-size: 0.8rem; /* Swapped: made larger */
             font-weight: 700;
             text-transform: uppercase;
             margin-bottom: 6px;
@@ -150,7 +150,7 @@
         
         .call-stack-log { 
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 0.8rem;
+            font-size: 0.75rem; /* Swapped: made smaller */
             color: #d1d5db; 
             background-color: #111111; 
             padding: 6px 8px; 
@@ -204,9 +204,39 @@
         .status-warn { background-color: #f59e0b; }
         .status-error { background-color: #ef4444; }
 
-        .flow-controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
-        .flow-control-buttons button { background: #2d2d2d; color: #9ca3af; border: none; padding: 0.5rem 0.75rem; font-size: 0.9rem; font-weight: bold; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; }
-        .flow-control-buttons button:hover { background: #374151; color: #e5e7eb; }
+        .flow-controls { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            margin-bottom: 0.75rem;
+            position: sticky; /* Prevent displacement */
+            top: 0;
+            z-index: 10;
+            background-color: #0e0e0e;
+            padding-bottom: 0.5rem;
+        }
+        .flow-control-buttons { 
+            display: flex; 
+            gap: 0.5rem; 
+        }
+        .flow-control-buttons button { 
+            background: #2d2d2d; 
+            color: #9ca3af; 
+            border: none; 
+            padding: 0.375rem 0.625rem; /* Made smaller */
+            font-size: 0.8rem; /* Made smaller */
+            font-weight: 600; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            transition: all 0.15s ease; /* Faster transition */
+            text-transform: uppercase; 
+            min-width: auto; /* Remove fixed width */
+        }
+        .flow-control-buttons button:hover { 
+            background: #374151; 
+            color: #e5e7eb; 
+            transform: translateY(-1px);
+        }
 
         .call-stack-nav-controls { display: flex; justify-content: space-between; margin-top: auto; padding-top: 1rem; }
         .call-stack-nav-button { background: none; border: none; color: #6b7280; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: color 0.2s ease; }
@@ -276,232 +306,332 @@
     </main>
 
     <script>
-        class LogStreamManager {
-            constructor(url, callbacks) { this.url = url; this.websocket = null; this.callbacks = callbacks; }
-            connect() { this.websocket = new WebSocket(this.url); this.websocket.onopen = () => this.callbacks.onOpen(); this.websocket.onmessage = (event) => this.callbacks.onMessage(event.data); this.websocket.onerror = (error) => this.callbacks.onError(error); this.websocket.onclose = () => this.callbacks.onClose(); }
-        }
-
         class DashboardManager {
             constructor() {
-                this.elements = {
-                    container: document.getElementById('dashboard-container'),
-                    panels: document.querySelectorAll('.dashboard-panel'),
-                    resetButtons: document.querySelectorAll('.reset-layout-button'),
-                    logsContentArea: document.getElementById('logs-content-area'),
-                    statusIndicator: document.getElementById('ws-status-indicator'),
-                    latestApiCall: document.getElementById('latest-api-call'),
-                    apiCallTime: document.getElementById('api-call-time'),
-                    apiCallStatus: document.getElementById('api-call-status'),
-                    apiCallError: document.getElementById('api-call-error'),
-                    apiCallErrorContainer: document.getElementById('api-call-error-container'),
-                    callStackFlow: document.getElementById('call-stack-flow'),
-                    prevCallBtn: document.getElementById('prev-call-btn'),
-                    nextCallBtn: document.getElementById('next-call-btn'),
-                    expandAllBtn: document.getElementById('expand-all-btn'),
-                    collapseAllBtn: document.getElementById('collapse-all-btn'),
-                    gutter: null,
-                };
+                // Core elements
+                this.container = document.getElementById('dashboard-container');
+                this.logsArea = document.getElementById('logs-content-area');
+                this.statusIndicator = document.getElementById('ws-status-indicator');
+                this.latestApiCall = document.getElementById('latest-api-call');
+                this.apiCallTime = document.getElementById('api-call-time');
+                this.apiCallStatus = document.getElementById('api-call-status');
+                this.apiCallError = document.getElementById('api-call-error');
+                this.apiCallErrorContainer = document.getElementById('api-call-error-container');
+                this.callStackFlow = document.getElementById('call-stack-flow');
+                this.prevCallBtn = document.getElementById('prev-call-btn');
+                this.nextCallBtn = document.getElementById('next-call-btn');
 
-                this.state = { isLayoutCustomized: false, isInsidePostBlock: false, isLogAreaCleared: true, postMessageBuffer: [], postRequestCounter: 0, postHistory: [], currentHistoryIndex: -1, };
-                this.MAX_HISTORY = 10; this.DEFAULT_SIZES = [65, 35]; this.MIN_CONTAINER_WIDTH = 700;
+                // State
+                this.postHistory = [];
+                this.currentHistoryIndex = -1;
+                this.postRequestCounter = 0;
+                this.postMessageBuffer = [];
+                this.isInsidePostBlock = false;
+                this.isLogAreaCleared = true;
+                this.websocket = null;
 
-                this.splitInstance = Split(['#logs-panel', '#stack-panel'], { sizes: this.DEFAULT_SIZES, minSize: 320, gutterSize: 8, onDragStart: () => this.elements.panels.forEach(p => p.classList.remove('dashboard-panel')), onDrag: () => this.checkLayout(), onDragEnd: () => this.elements.panels.forEach(p => p.classList.add('dashboard-panel')), });
-                this.logStream = new LogStreamManager("ws://127.0.0.1:8000/ws/logs", { onOpen: this.onWsOpen.bind(this), onMessage: this.handleLogMessage.bind(this), onClose: this.onWsClose.bind(this), onError: this.onWsError.bind(this), });
-                this.initialize();
+                // Constants
+                this.MAX_HISTORY = 10;
+                this.DEFAULT_SIZES = [65, 35];
+
+                this.init();
             }
 
-            initialize() {
-                this.elements.gutter = this.elements.container.querySelector('.gutter');
-                this.elements.container.addEventListener('click', this.handleDelegatedClick.bind(this));
-                new ResizeObserver(entries => this.handleResize(entries[0].contentRect.width)).observe(this.elements.container);
-                this.handleResize(this.elements.container.clientWidth);
+            init() {
+                // Initialize split layout
+                this.splitInstance = Split(['#logs-panel', '#stack-panel'], {
+                    sizes: this.DEFAULT_SIZES,
+                    minSize: 320,
+                    gutterSize: 8,
+                    onDrag: () => this.checkLayout()
+                });
+
+                // Event delegation
+                this.container.addEventListener('click', this.handleClick.bind(this));
+                
+                // Responsive handling
+                new ResizeObserver(entries => {
+                    const width = entries[0].contentRect.width;
+                    const gutter = this.container.querySelector('.gutter');
+                    if (width < 700) {
+                        gutter.classList.add('gutter-disabled');
+                        this.resetLayout();
+                    } else {
+                        gutter.classList.remove('gutter-disabled');
+                    }
+                }).observe(this.container);
+
+                // Connect WebSocket
+                this.connectWebSocket();
                 this.displaySystemMessage("CONNECTING...");
-                this.logStream.connect();
-                this.updateNavigationButtons();
+                this.updateNavButtons();
             }
-            
-            onWsOpen() { this.elements.statusIndicator.className = 'status-indicator-circle status-connected'; this.displaySystemMessage("CONNECTION ESTABLISHED. WAITING FOR LOGS..."); }
-            onWsClose() { this.elements.statusIndicator.className = 'status-indicator-circle status-disconnected'; this.displaySystemMessage("CONNECTION CLOSED. AWAITING CONNECTION..."); }
-            onWsError(error) { console.error("WebSocket Error:", error); this.elements.statusIndicator.className = 'status-indicator-circle status-disconnected'; this.displaySystemMessage("CONNECTION FAILED. PLEASE CHECK THE SERVER."); }
+
+            connectWebSocket() {
+                this.websocket = new WebSocket("ws://127.0.0.1:8000/ws/logs");
+                this.websocket.onopen = () => {
+                    this.statusIndicator.className = 'status-indicator-circle status-connected';
+                    this.displaySystemMessage("CONNECTION ESTABLISHED. WAITING FOR LOGS...");
+                };
+                this.websocket.onmessage = (event) => this.handleLogMessage(event.data);
+                this.websocket.onclose = () => {
+                    this.statusIndicator.className = 'status-indicator-circle status-disconnected';
+                    this.displaySystemMessage("CONNECTION CLOSED. AWAITING CONNECTION...");
+                };
+                this.websocket.onerror = () => {
+                    this.statusIndicator.className = 'status-indicator-circle status-disconnected';
+                    this.displaySystemMessage("CONNECTION FAILED. PLEASE CHECK THE SERVER.");
+                };
+            }
 
             handleLogMessage(message) {
-                if (this.state.isLogAreaCleared) { this.elements.logsContentArea.innerHTML = ''; this.state.isLogAreaCleared = false; }
-                if (message.includes("-> POST")) { this.state.isInsidePostBlock = true; this.state.postMessageBuffer.push(message); } 
-                else if (message.includes("<- POST")) {
-                    this.state.postMessageBuffer.push(message);
-                    this.state.postRequestCounter++;
-                    const title = `POST #${this.state.postRequestCounter}`;
-                    this.state.postMessageBuffer.forEach(logLine => this.renderLogEntry(title, logLine));
+                if (this.isLogAreaCleared) {
+                    this.logsArea.innerHTML = '';
+                    this.isLogAreaCleared = false;
+                }
+
+                if (message.includes("-> POST")) {
+                    this.isInsidePostBlock = true;
+                    this.postMessageBuffer = [message];
+                } else if (message.includes("<- POST")) {
+                    this.postMessageBuffer.push(message);
                     this.processPostBlock();
-                    this.state.isInsidePostBlock = false; this.state.postMessageBuffer = [];
+                    this.isInsidePostBlock = false;
                 } else {
-                    if (this.state.isInsidePostBlock) { this.state.postMessageBuffer.push(message); } 
-                    else { this.renderLogEntry("Raw Log", message); }
-                }
-            }
-            
-            processPostBlock() {
-                const callData = this.parseLogsToCallStack(this.state.postMessageBuffer);
-                if (!callData) return;
-                this.state.postHistory.push(callData);
-                if (this.state.postHistory.length > this.MAX_HISTORY) { this.state.postHistory.shift(); }
-                this.state.currentHistoryIndex = this.state.postHistory.length - 1;
-                this.displayCallForHistoryIndex(this.state.currentHistoryIndex);
-            }
-
-            parseLogsToCallStack(logBuffer) {
-                const apiCallMatch = logBuffer[0].match(/POST (\/\S+)/);
-                if (!apiCallMatch) return null;
-                const root = { name: 'POST Request', children: [], logs: [], duration: 'N/A' };
-                const stack = [root];
-                logBuffer.forEach(log => {
-                    let match; const currentNode = stack[stack.length - 1];
-                    if ((match = log.match(/-> Entering: (.*)/))) { const newNode = { name: match[1], children: [], logs: [], duration: 'N/A' }; currentNode.children.push(newNode); stack.push(newNode); } 
-                    else if ((match = log.match(/<- Exiting: .* - (.*s)/))) { if (stack.length > 1) { const exitingNode = stack.pop(); exitingNode.duration = match[1] || 'N/A'; } } 
-                    else if ((match = log.match(/<- POST .* - (\d+) - (.*s)/))) { root.statusCode = match[1] || 'N/A'; root.duration = match[2] || 'N/A'; } 
-                    else if ((match = log.match(/\| ERROR \| (.*)/))) { root.error = match[1].trim(); currentNode.logs.push(log); }
-                    else if (!log.includes("-> POST")) { currentNode.logs.push(log); }
-                });
-                return { apiCall: apiCallMatch[1], callStack: root };
-            }
-
-            displayCallForHistoryIndex(index) {
-                const callData = this.state.postHistory[index];
-                if (!callData) return;
-                this.elements.latestApiCall.textContent = callData.apiCall;
-                this.elements.apiCallTime.textContent = callData.callStack.duration;
-                
-                const status = callData.callStack.statusCode;
-                let statusClass = 'status-warn';
-                if (status >= 200 && status < 300) statusClass = 'status-ok';
-                if (status >= 500) statusClass = 'status-error';
-                this.elements.apiCallStatus.innerHTML = `<div class="status-circle ${statusClass}"></div> ${status}`;
-
-                if (callData.callStack.error) {
-                    this.elements.apiCallError.textContent = callData.callStack.error;
-                    this.elements.apiCallErrorContainer.style.display = 'block';
-                } else {
-                    this.elements.apiCallErrorContainer.style.display = 'none';
-                }
-
-                this.elements.callStackFlow.innerHTML = '';
-                if (callData.callStack) {
-                    callData.callStack.children.forEach((childNode, i) => {
-                        const stackElement = this.renderCallStackNode(childNode, `${i + 1}.`);
-                        this.elements.callStackFlow.appendChild(stackElement);
-                    });
-                    
-                    // Render top-level logs with improved styling
-                    const topLevelLogs = callData.callStack.logs.filter(log => !log.includes("| ERROR |"));
-                    if (topLevelLogs.length > 0) {
-                        const topLogsSection = document.createElement('div');
-                        topLogsSection.className = 'call-stack-logs-section';
-                        topLogsSection.style.marginTop = '12px';
-                        
-                        const topLogsTitle = document.createElement('div');
-                        topLogsTitle.className = 'call-stack-logs-title';
-                        topLogsTitle.textContent = `Top Level Logs (${topLevelLogs.length})`;
-                        topLogsSection.appendChild(topLogsTitle);
-                        
-                        topLevelLogs.forEach(log => {
-                            const logElement = document.createElement('div');
-                            logElement.className = 'call-stack-log';
-                            logElement.textContent = log;
-                            topLogsSection.appendChild(logElement);
-                        });
-                        
-                        this.elements.callStackFlow.appendChild(topLogsSection);
+                    if (this.isInsidePostBlock) {
+                        this.postMessageBuffer.push(message);
+                    } else {
+                        this.renderLogEntry("Raw Log", message);
                     }
                 }
-                this.updateNavigationButtons();
             }
-            
-            renderCallStackNode(node, prefix) {
-                const hasContent = node.logs.length > 0 || node.children.length > 0;
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'call-stack-item';
+
+            processPostBlock() {
+                const title = `POST #${++this.postRequestCounter}`;
+                this.postMessageBuffer.forEach(log => this.renderLogEntry(title, log));
                 
-                itemDiv.innerHTML = `
+                const callData = this.parseCallStack(this.postMessageBuffer);
+                if (callData) {
+                    this.postHistory.push(callData);
+                    if (this.postHistory.length > this.MAX_HISTORY) this.postHistory.shift();
+                    this.currentHistoryIndex = this.postHistory.length - 1;
+                    this.displayCall(this.currentHistoryIndex);
+                }
+            }
+
+            parseCallStack(logs) {
+                const apiMatch = logs[0].match(/POST (\/\S+)/);
+                if (!apiMatch) return null;
+
+                const root = { name: 'POST Request', children: [], logs: [], duration: 'N/A' };
+                const stack = [root];
+
+                logs.forEach(log => {
+                    const current = stack[stack.length - 1];
+                    let match;
+
+                    if ((match = log.match(/-> Entering: (.*)/))) {
+                        const node = { name: match[1], children: [], logs: [], duration: 'N/A' };
+                        current.children.push(node);
+                        stack.push(node);
+                    } else if ((match = log.match(/<- Exiting: .* - (.*s)/))) {
+                        if (stack.length > 1) {
+                            stack.pop().duration = match[1] || 'N/A';
+                        }
+                    } else if ((match = log.match(/<- POST .* - (\d+) - (.*s)/))) {
+                        root.statusCode = match[1];
+                        root.duration = match[2];
+                    } else if ((match = log.match(/\| ERROR \| (.*)/))) {
+                        root.error = match[1].trim();
+                        current.logs.push(log);
+                    } else if (!log.includes("-> POST")) {
+                        current.logs.push(log);
+                    }
+                });
+
+                return { apiCall: apiMatch[1], callStack: root };
+            }
+
+            displayCall(index) {
+                const data = this.postHistory[index];
+                if (!data) return;
+
+                this.latestApiCall.textContent = data.apiCall;
+                this.apiCallTime.textContent = data.callStack.duration;
+
+                const status = data.callStack.statusCode;
+                const statusClass = status >= 500 ? 'status-error' : status >= 200 && status < 300 ? 'status-ok' : 'status-warn';
+                this.apiCallStatus.innerHTML = `<div class="status-circle ${statusClass}"></div> ${status}`;
+
+                if (data.callStack.error) {
+                    this.apiCallError.textContent = data.callStack.error;
+                    this.apiCallErrorContainer.style.display = 'block';
+                } else {
+                    this.apiCallErrorContainer.style.display = 'none';
+                }
+
+                this.renderCallStack(data.callStack);
+                this.updateNavButtons();
+            }
+
+            renderCallStack(stack) {
+                this.callStackFlow.innerHTML = '';
+
+                // Render function calls
+                stack.children.forEach((node, i) => {
+                    this.callStackFlow.appendChild(this.createCallNode(node, `${i + 1}.`));
+                });
+
+                // Render top-level logs
+                const topLogs = stack.logs.filter(log => !log.includes("| ERROR |"));
+                if (topLogs.length > 0) {
+                    this.callStackFlow.appendChild(this.createLogsSection(topLogs, `Top Level Logs (${topLogs.length})`));
+                }
+            }
+
+            createCallNode(node, prefix) {
+                const hasContent = node.logs.length > 0 || node.children.length > 0;
+                const div = document.createElement('div');
+                div.className = 'call-stack-item';
+                
+                div.innerHTML = `
                     <div class="call-stack-header">
                         <span class="flow-prefix">${prefix}</span>
                         <span class="call-stack-name">${node.name}</span>
                     </div>
                     <div class="call-stack-footer">
                         <span class="call-stack-duration">${node.duration}</span>
-                        ${hasContent ? `<svg class="expand-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4l4 4-4 4"></path></svg>` : ''}
+                        ${hasContent ? '<svg class="expand-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4l4 4-4 4"></path></svg>' : ''}
                     </div>
                 `;
 
                 if (hasContent) {
-                    const contentDiv = document.createElement('div');
-                    contentDiv.className = 'call-stack-content';
-                    
-                    // Add logs section if there are logs
+                    const content = document.createElement('div');
+                    content.className = 'call-stack-content';
+
                     if (node.logs.length > 0) {
-                        const logsSection = document.createElement('div');
-                        logsSection.className = 'call-stack-logs-section';
-                        
-                        const logsTitle = document.createElement('div');
-                        logsTitle.className = 'call-stack-logs-title';
-                        logsTitle.textContent = `Logs (${node.logs.length})`;
-                        logsSection.appendChild(logsTitle);
-                        
-                        node.logs.forEach(log => { 
-                            const logDiv = document.createElement('div'); 
-                            logDiv.className = 'call-stack-log'; 
-                            logDiv.textContent = log; 
-                            logsSection.appendChild(logDiv); 
-                        });
-                        
-                        contentDiv.appendChild(logsSection);
+                        content.appendChild(this.createLogsSection(node.logs, `Logs (${node.logs.length})`));
                     }
-                    
-                    // Add nested function calls if they exist
+
                     if (node.children.length > 0) {
-                        const nestedDiv = document.createElement('div');
-                        nestedDiv.className = 'nested-calls';
-                        node.children.forEach((child, i) => nestedDiv.appendChild(this.renderCallStackNode(child, `${prefix}${i + 1}.`)));
-                        contentDiv.appendChild(nestedDiv);
+                        const nested = document.createElement('div');
+                        nested.className = 'nested-calls';
+                        node.children.forEach((child, i) => {
+                            nested.appendChild(this.createCallNode(child, `${prefix}${i + 1}.`));
+                        });
+                        content.appendChild(nested);
                     }
-                    
-                    itemDiv.appendChild(contentDiv);
-                    itemDiv.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        contentDiv.classList.toggle('expanded');
-                        itemDiv.querySelector('.expand-icon')?.classList.toggle('expanded');
-                    });
+
+                    div.appendChild(content);
                 }
-                return itemDiv;
+
+                return div;
             }
 
-            updateNavigationButtons() { const { prevCallBtn, nextCallBtn } = this.elements; const { currentHistoryIndex, postHistory } = this.state; prevCallBtn.disabled = currentHistoryIndex <= 0; nextCallBtn.disabled = currentHistoryIndex >= postHistory.length - 1; }
-            displaySystemMessage(message) { this.elements.logsContentArea.innerHTML = `<div class="flex items-center justify-center h-full p-4"><p class="text-2xl font-bold text-gray-500">${message}</p></div>`; this.state.isLogAreaCleared = true; }
-            renderLogEntry(prefix, message) { const entry = document.createElement('div'); entry.className = 'log-entry'; entry.innerHTML = `<span class="log-prefix">${prefix}</span><span class="log-message">${message}</span>`; this.elements.logsContentArea.appendChild(entry); this.elements.logsContentArea.scrollTop = this.elements.logsContentArea.scrollHeight; }
+            createLogsSection(logs, title) {
+                const section = document.createElement('div');
+                section.className = 'call-stack-logs-section';
+                
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'call-stack-logs-title';
+                titleDiv.textContent = title;
+                section.appendChild(titleDiv);
 
-            handleDelegatedClick(event) {
-                const button = event.target.closest('button');
-                if (!button) return;
-                switch(button.id) {
-                    case 'prev-call-btn': if (this.state.currentHistoryIndex > 0) { this.state.currentHistoryIndex--; this.displayCallForHistoryIndex(this.state.currentHistoryIndex); } break;
-                    case 'next-call-btn': if (this.state.currentHistoryIndex < this.state.postHistory.length - 1) { this.state.currentHistoryIndex++; this.displayCallForHistoryIndex(this.state.currentHistoryIndex); } break;
-                    case 'expand-all-btn': this.toggleAllFlowNodes(true); break;
-                    case 'collapse-all-btn': this.toggleAllFlowNodes(false); break;
-                }
-                const actionMap = { 'reset-layout-button': () => this.resetLayout(), 'settings-toggle': () => this.toggleSettingsView(button), 'settings-back-button': () => this.toggleSettingsView(button) };
-                for (const className in actionMap) { if (button.classList.contains(className)) { actionMap[className](); break; } }
+                logs.forEach(log => {
+                    const logDiv = document.createElement('div');
+                    logDiv.className = 'call-stack-log';
+                    logDiv.textContent = log;
+                    section.appendChild(logDiv);
+                });
+
+                return section;
             }
 
+            // Optimized expand/collapse with direct class manipulation
             toggleAllFlowNodes(expand) {
-                const contentNodes = this.elements.callStackFlow.querySelectorAll('.call-stack-content');
-                const iconNodes = this.elements.callStackFlow.querySelectorAll('.expand-icon');
-                contentNodes.forEach(node => node.classList.toggle('expanded', expand));
-                iconNodes.forEach(node => node.classList.toggle('expanded', expand));
+                const selector = expand ? '.call-stack-content:not(.expanded)' : '.call-stack-content.expanded';
+                const iconSelector = expand ? '.expand-icon:not(.expanded)' : '.expand-icon.expanded';
+                
+                this.callStackFlow.querySelectorAll(selector).forEach(el => el.classList.toggle('expanded', expand));
+                this.callStackFlow.querySelectorAll(iconSelector).forEach(el => el.classList.toggle('expanded', expand));
             }
 
-            checkLayout() { const currentSizes = this.splitInstance.getSizes(); const needsReset = Math.abs(currentSizes[0] - this.DEFAULT_SIZES[0]) > 1; if (needsReset !== this.state.isLayoutCustomized) { this.state.isLayoutCustomized = needsReset; this.elements.resetButtons.forEach(btn => btn.classList.toggle('hidden', !needsReset)); } }
-            handleResize(width) { if (width < this.MIN_CONTAINER_WIDTH) { if (!this.elements.gutter.classList.contains('gutter-disabled')) { this.elements.gutter.classList.add('gutter-disabled'); this.resetLayout(); } } else { this.elements.gutter.classList.remove('gutter-disabled'); } }
-            resetLayout() { this.elements.panels.forEach(p => p.classList.add('dashboard-panel')); this.splitInstance.setSizes(this.DEFAULT_SIZES); this.state.isLayoutCustomized = false; this.elements.resetButtons.forEach(btn => btn.classList.add('hidden')); }
-            toggleSettingsView(button) { const panelId = button.dataset.panelId; const wrapper = document.querySelector(`.panel-content-wrapper[data-panel-id="${panelId}"]`); if (wrapper) wrapper.classList.toggle('settings-active'); }
+            handleClick(e) {
+                const target = e.target;
+                const button = target.closest('button');
+                
+                if (!button) {
+                    // Handle call stack item clicks
+                    const item = target.closest('.call-stack-item');
+                    if (item) {
+                        const content = item.querySelector('.call-stack-content');
+                        const icon = item.querySelector('.expand-icon');
+                        if (content) {
+                            content.classList.toggle('expanded');
+                            icon?.classList.toggle('expanded');
+                        }
+                    }
+                    return;
+                }
+
+                // Handle button clicks
+                switch (button.id) {
+                    case 'prev-call-btn':
+                        if (this.currentHistoryIndex > 0) {
+                            this.displayCall(--this.currentHistoryIndex);
+                        }
+                        break;
+                    case 'next-call-btn':
+                        if (this.currentHistoryIndex < this.postHistory.length - 1) {
+                            this.displayCall(++this.currentHistoryIndex);
+                        }
+                        break;
+                    case 'expand-all-btn':
+                        this.toggleAllFlowNodes(true);
+                        break;
+                    case 'collapse-all-btn':
+                        this.toggleAllFlowNodes(false);
+                        break;
+                }
+
+                // Handle other button actions
+                if (button.classList.contains('reset-layout-button')) {
+                    this.resetLayout();
+                } else if (button.classList.contains('settings-toggle') || button.classList.contains('settings-back-button')) {
+                    const panelId = button.dataset.panelId;
+                    document.querySelector(`.panel-content-wrapper[data-panel-id="${panelId}"]`)?.classList.toggle('settings-active');
+                }
+            }
+
+            checkLayout() {
+                const isCustomized = Math.abs(this.splitInstance.getSizes()[0] - this.DEFAULT_SIZES[0]) > 1;
+                document.querySelectorAll('.reset-layout-button').forEach(btn => {
+                    btn.classList.toggle('hidden', !isCustomized);
+                });
+            }
+
+            resetLayout() {
+                this.splitInstance.setSizes(this.DEFAULT_SIZES);
+                this.checkLayout();
+            }
+
+            updateNavButtons() {
+                this.prevCallBtn.disabled = this.currentHistoryIndex <= 0;
+                this.nextCallBtn.disabled = this.currentHistoryIndex >= this.postHistory.length - 1;
+            }
+
+            displaySystemMessage(message) {
+                this.logsArea.innerHTML = `<div class="flex items-center justify-center h-full p-4"><p class="text-2xl font-bold text-gray-500">${message}</p></div>`;
+                this.isLogAreaCleared = true;
+            }
+
+            renderLogEntry(prefix, message) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerHTML = `<span class="log-prefix">${prefix}</span><span class="log-message">${message}</span>`;
+                this.logsArea.appendChild(entry);
+                this.logsArea.scrollTop = this.logsArea.scrollHeight;
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => new DashboardManager());

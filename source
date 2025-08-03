@@ -371,4 +371,103 @@
                     if (node.children.length > 0) {
                         const nested = document.createElement('div');
                         nested.className = 'nested-calls';
-                        node.children.forEach((child, i) => neste
+                        node.children.forEach((child, i) => nested.appendChild(this.createCallNode(child, `${prefix}${i + 1}.`)));
+                        wrapper.appendChild(nested);
+                    }
+                    content.appendChild(wrapper);
+                    div.appendChild(content);
+                }
+                return div;
+            }
+
+            createLogsSection(logs, title) {
+                const section = document.createElement('div');
+                section.className = 'call-stack-logs-section';
+                section.innerHTML = `<div class="call-stack-logs-title">${title}</div>`;
+                logs.forEach(log => {
+                    const logDiv = document.createElement('div');
+                    logDiv.className = 'call-stack-log';
+                    logDiv.textContent = log;
+                    section.appendChild(logDiv);
+                });
+                return section;
+            }
+
+            toggleAllFlowNodes(expand) {
+                this.elements.get('callStackFlow').querySelectorAll('.call-stack-content, .expand-icon').forEach(el => el.classList.toggle('expanded', expand));
+            }
+
+            handleClick(e) {
+                const button = e.target.closest('button');
+                if (button) {
+                    switch (button.id) {
+                        case 'prev-call-btn': if (this.state.currentHistoryIndex > 0) this.displayCall(--this.state.currentHistoryIndex); break;
+                        case 'next-call-btn': if (this.state.currentHistoryIndex < this.state.postHistory.length - 1) this.displayCall(++this.state.currentHistoryIndex); break;
+                        case 'expand-all-btn': this.toggleAllFlowNodes(true); break;
+                        case 'collapse-all-btn': this.toggleAllFlowNodes(false); break;
+                    }
+                    if (button.classList.contains('reset-layout-button')) this.resetLayout();
+                    if (button.classList.contains('settings-toggle') || button.classList.contains('settings-back-button')) {
+                        document.querySelector(`.panel-content-wrapper[data-panel-id="${button.dataset.panelId}"]`)?.classList.toggle('settings-active');
+                    }
+                } else {
+                    const item = e.target.closest('.call-stack-item');
+                    if (item) {
+                        item.querySelector('.call-stack-content')?.classList.toggle('expanded');
+                        item.querySelector('.expand-icon')?.classList.toggle('expanded');
+                    }
+                }
+            }
+            
+            handleTooltipShow(e) {
+                const target = e.target.closest('[data-full-text]');
+                if (!target || target.scrollWidth <= target.clientWidth) return;
+                const tooltip = this.elements.get('tooltip');
+                tooltip.querySelector('.tooltip-text').textContent = target.dataset.fullText;
+                tooltip.style.display = 'block';
+                const rect = target.getBoundingClientRect();
+                const top = rect.top - tooltip.offsetHeight - 10;
+                const left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+                tooltip.style.left = `${Math.max(5, left)}px`;
+                tooltip.style.top = `${Math.max(5, top)}px`;
+                target.addEventListener('mouseleave', this.handleTooltipHide, { once: true });
+            }
+
+            handleTooltipHide() { this.elements.get('tooltip').style.display = 'none'; }
+
+            checkLayout() {
+                if (this.state.isDragging) return; // Skip check during dragging
+                
+                const currentSizes = this.splitInstance.getSizes();
+                const isCustomized = Math.abs(currentSizes[0] - this.config.defaultSizes[0]) > 1;
+                document.querySelectorAll('.reset-layout-button').forEach(btn => btn.classList.toggle('hidden', !isCustomized));
+            }
+
+            resetLayout() { 
+                this.splitInstance.setSizes(this.config.defaultSizes); 
+                this.debouncedCheckLayout();
+            }
+
+            updateNavButtons() {
+                this.elements.get('prevCallBtn').disabled = this.state.currentHistoryIndex <= 0;
+                this.elements.get('nextCallBtn').disabled = this.state.currentHistoryIndex >= this.state.postHistory.length - 1;
+            }
+
+            displaySystemMessage(message) {
+                this.elements.get('logsArea').innerHTML = `<div class="flex items-center justify-center h-full p-4"><p class="text-2xl font-bold text-gray-500">${message}</p></div>`;
+                this.state.isLogAreaCleared = true;
+            }
+
+            renderLogEntry(prefix, message) {
+                const logsArea = this.elements.get('logsArea');
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerHTML = `<span class="log-prefix">${prefix}</span><span class="log-message">${message}</span>`;
+                logsArea.appendChild(entry);
+                logsArea.scrollTop = logsArea.scrollHeight;
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => new DashboardManager());
+    </script>
+</body>
+</html>

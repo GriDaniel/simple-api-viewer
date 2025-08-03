@@ -53,20 +53,41 @@
         #call-stack-flow { overflow-y: auto; overflow-x: hidden; }
         .call-stack-title { color: #9ca3af; font-weight: bold; text-transform: uppercase; font-size: 0.9rem; }
         
-        .call-stack-item { border: 1px solid #2d2d2d; border-radius: 6px; margin-bottom: 6px; background-color: #181818; border-left: 4px solid #b81830; cursor: pointer; transition: background-color 0.2s ease; padding: 10px; }
-        .call-stack-item:hover { background-color: #2d2d2d; }
+        .call-stack-item { 
+            border: 1px solid #2d2d2d; 
+            border-radius: 8px; 
+            margin-bottom: 8px; 
+            background-color: #181818; 
+            border-left: 4px solid #b81830; 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+            padding: 12px; 
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .call-stack-item:hover { 
+            background-color: #202020; 
+            border-left-color: #d1263a;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
         
         /* FIXED: Better flex layout for natural text wrapping */
         .call-stack-header { 
             display: flex; 
             align-items: flex-start; 
             gap: 0.75rem; 
-            margin-bottom: 4px; /* Add some separation from footer */
+            margin-bottom: 6px; /* Add some separation from footer */
         }
         .flow-prefix { 
             color: #6b7280; 
-            font-weight: 600; 
+            font-weight: 700; 
             flex-shrink: 0; /* Prevent prefix from shrinking */
+            background-color: #2d2d2d;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            min-width: 24px;
+            text-align: center;
         }
         
         /* FIXED: Natural text wrapping instead of aggressive breaking */
@@ -77,19 +98,103 @@
             overflow-wrap: break-word; /* Break long words naturally */
             word-wrap: break-word; /* Legacy support */
             line-height: 1.4; /* Better line spacing for multi-line text */
+            font-size: 0.95rem;
             /* Removed word-break: break-all for more natural breaking */
         }
 
         .call-stack-footer { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; }
-        .call-stack-duration { color: #9ca3af; font-size: 0.8rem; flex-shrink: 0; }
-        .expand-icon { transition: transform 0.2s ease; color: #6b7280; flex-shrink: 0; width: 16px; height: 16px; }
+        .call-stack-duration { 
+            color: #22c55e; 
+            font-size: 0.8rem; 
+            flex-shrink: 0; 
+            font-weight: 600;
+            background-color: rgba(34, 197, 94, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .expand-icon { transition: transform 0.2s ease; color: #9ca3af; flex-shrink: 0; width: 16px; height: 16px; }
         .expand-icon.expanded { transform: rotate(90deg); }
 
-        .call-stack-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; padding-left: 28px; /* Aligns with name */ }
-        .call-stack-content.expanded { max-height: 1000px; margin-top: 10px; }
+        /* FIXED: Prevent layout shift on expand */
+        .call-stack-content { 
+            max-height: 0; 
+            overflow: hidden; 
+            transition: max-height 0.3s ease-out; 
+            padding-left: 0; /* Reset padding */
+            position: relative; /* Ensure proper containment */
+        }
+        .call-stack-content.expanded { 
+            max-height: 2000px; /* Increased for larger content */
+            margin-top: 8px; 
+        }
 
-        .call-stack-log { font-style: italic; color: #d1d5db; background-color: #0e0e0e; padding: 8px; border-radius: 4px; margin-bottom: 8px; overflow-wrap: break-word; white-space: pre-wrap; }
-        .nested-calls { padding-left: 15px; margin-top: 8px; border-left: 2px solid #2d2d2d; }
+        /* Improved log styling with better visual separation */
+        .call-stack-logs-section {
+            background-color: #0a0a0a;
+            border: 1px solid #2d2d2d;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .call-stack-logs-title {
+            color: #9ca3af;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #2d2d2d;
+            letter-spacing: 0.5px;
+        }
+        
+        .call-stack-log { 
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8rem;
+            color: #d1d5db; 
+            background-color: #111111; 
+            padding: 6px 8px; 
+            border-radius: 4px; 
+            margin-bottom: 4px; 
+            overflow-wrap: break-word; 
+            white-space: pre-wrap; 
+            border-left: 2px solid #374151;
+            line-height: 1.3;
+        }
+        
+        .call-stack-log:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* Enhanced nested calls styling */
+        .nested-calls { 
+            padding-left: 20px; 
+            margin-top: 12px; 
+            border-left: 3px solid #374151; 
+            position: relative;
+        }
+        
+        .nested-calls::before {
+            content: '';
+            position: absolute;
+            left: -3px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, #b81830, #6b7280);
+            border-radius: 2px;
+        }
+        
+        /* Nested items get slightly different styling */
+        .nested-calls .call-stack-item {
+            background-color: #151515;
+            border-left-color: #6b7280;
+            margin-bottom: 6px;
+        }
+        
+        .nested-calls .call-stack-item:hover {
+            background-color: #1a1a1a;
+        }
 
         .call-stack-meta-row { display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1.5rem; }
         .call-stack-meta-item .meta-title { color: #9ca3af; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 0.25rem; }
@@ -285,12 +390,28 @@
                         const stackElement = this.renderCallStackNode(childNode, `${i + 1}.`);
                         this.elements.callStackFlow.appendChild(stackElement);
                     });
-                     callData.callStack.logs.filter(log => !log.includes("| ERROR |")).forEach(log => {
-                        const logElement = document.createElement('div');
-                        logElement.className = 'call-stack-log';
-                        logElement.textContent = `[TOP LEVEL] ${log}`;
-                        this.elements.callStackFlow.appendChild(logElement);
-                    });
+                    
+                    // Render top-level logs with improved styling
+                    const topLevelLogs = callData.callStack.logs.filter(log => !log.includes("| ERROR |"));
+                    if (topLevelLogs.length > 0) {
+                        const topLogsSection = document.createElement('div');
+                        topLogsSection.className = 'call-stack-logs-section';
+                        topLogsSection.style.marginTop = '12px';
+                        
+                        const topLogsTitle = document.createElement('div');
+                        topLogsTitle.className = 'call-stack-logs-title';
+                        topLogsTitle.textContent = `Top Level Logs (${topLevelLogs.length})`;
+                        topLogsSection.appendChild(topLogsTitle);
+                        
+                        topLevelLogs.forEach(log => {
+                            const logElement = document.createElement('div');
+                            logElement.className = 'call-stack-log';
+                            logElement.textContent = log;
+                            topLogsSection.appendChild(logElement);
+                        });
+                        
+                        this.elements.callStackFlow.appendChild(topLogsSection);
+                    }
                 }
                 this.updateNavigationButtons();
             }
@@ -314,13 +435,35 @@
                 if (hasContent) {
                     const contentDiv = document.createElement('div');
                     contentDiv.className = 'call-stack-content';
-                    node.logs.forEach(log => { const logDiv = document.createElement('div'); logDiv.className = 'call-stack-log'; logDiv.textContent = log; contentDiv.appendChild(logDiv); });
+                    
+                    // Add logs section if there are logs
+                    if (node.logs.length > 0) {
+                        const logsSection = document.createElement('div');
+                        logsSection.className = 'call-stack-logs-section';
+                        
+                        const logsTitle = document.createElement('div');
+                        logsTitle.className = 'call-stack-logs-title';
+                        logsTitle.textContent = `Logs (${node.logs.length})`;
+                        logsSection.appendChild(logsTitle);
+                        
+                        node.logs.forEach(log => { 
+                            const logDiv = document.createElement('div'); 
+                            logDiv.className = 'call-stack-log'; 
+                            logDiv.textContent = log; 
+                            logsSection.appendChild(logDiv); 
+                        });
+                        
+                        contentDiv.appendChild(logsSection);
+                    }
+                    
+                    // Add nested function calls if they exist
                     if (node.children.length > 0) {
                         const nestedDiv = document.createElement('div');
                         nestedDiv.className = 'nested-calls';
                         node.children.forEach((child, i) => nestedDiv.appendChild(this.renderCallStackNode(child, `${prefix}${i + 1}.`)));
                         contentDiv.appendChild(nestedDiv);
                     }
+                    
                     itemDiv.appendChild(contentDiv);
                     itemDiv.addEventListener('click', (e) => {
                         e.stopPropagation();

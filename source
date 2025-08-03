@@ -50,34 +50,38 @@
         .status-disconnected { background-color: #ef4444; }
 
         /* --- Final styles for Call Stack Visualizer --- */
-        #call-stack-flow { overflow-y: auto; overflow-x: hidden; } /* Issue 1 Fix */
-        .call-stack-title { color: #9ca3af; font-weight: bold; text-transform: uppercase; font-size: 0.9rem; margin-bottom: 0.5rem; } /* Issue 2 Fix */
+        #call-stack-flow { overflow-y: auto; overflow-x: hidden; }
+        .call-stack-title { color: #9ca3af; font-weight: bold; text-transform: uppercase; font-size: 0.9rem; }
         
-        .call-stack-item { border: 1px solid #2d2d2d; border-radius: 6px; margin-bottom: 6px; background-color: #181818; border-left: 4px solid #b81830; cursor: pointer; transition: background-color 0.2s ease; } /* Issue 5 Fix */
+        /* Issue 7 Fix: Creative UI/UX redesign for function nodes */
+        .call-stack-item { border: 1px solid #2d2d2d; border-radius: 6px; margin-bottom: 6px; background-color: #181818; border-left: 4px solid #b81830; cursor: pointer; transition: background-color 0.2s ease; padding: 10px; }
         .call-stack-item:hover { background-color: #2d2d2d; }
-        .call-stack-header { padding: 10px; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-        .flow-prefix { color: #6b7280; font-weight: 600; margin-right: 0.75rem; } /* Issue 5 Fix */
-        .call-stack-name { font-weight: 600; color: #e5e7eb; overflow-wrap: break-word; white-space: pre-wrap; flex-grow: 1; } /* Issue 4 Fix */
+        .call-stack-header { display: flex; align-items: baseline; }
+        .flow-prefix { color: #6b7280; font-weight: 600; margin-right: 0.75rem; }
+        .call-stack-name { font-weight: 600; color: #e5e7eb; overflow-wrap: break-word; } /* This now works due to layout change */
+        .call-stack-footer { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-top: 4px; }
         .call-stack-duration { color: #9ca3af; font-size: 0.8rem; flex-shrink: 0; }
-        .expand-icon { transition: transform 0.2s ease; color: #9ca3af; flex-shrink: 0; }
+        .expand-icon { transition: transform 0.2s ease; color: #6b7280; flex-shrink: 0; width: 16px; height: 16px; }
         .expand-icon.expanded { transform: rotate(90deg); }
 
-        .call-stack-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; padding: 0 10px; }
-        .call-stack-content.expanded { max-height: 1000px; }
+        .call-stack-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; padding-left: 28px; /* Aligns with name */ }
+        .call-stack-content.expanded { max-height: 1000px; margin-top: 10px; }
 
         .call-stack-log { font-style: italic; color: #d1d5db; background-color: #0e0e0e; padding: 8px; border-radius: 4px; margin-bottom: 8px; overflow-wrap: break-word; white-space: pre-wrap; }
-        .nested-calls { padding-left: 15px; margin-top: 8px; margin-bottom: 10px; border-left: 2px solid #2d2d2d; }
+        .nested-calls { padding-left: 15px; margin-top: 8px; border-left: 2px solid #2d2d2d; }
 
-        .call-stack-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; } /* Issue 2 Fix */
-        .call-stack-meta-item .meta-title { color: #9ca3af; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 0.25rem; } /* Issue 2 Fix */
+        /* Issue 1 Fix: Meta info on one line */
+        .call-stack-meta-row { display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .call-stack-meta-item .meta-title { color: #9ca3af; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 0.25rem; }
         .call-stack-meta-item .meta-value { color: #d1d5db; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
         .status-circle { width: 10px; height: 10px; border-radius: 50%; }
         .status-ok { background-color: #22c55e; }
         .status-warn { background-color: #f59e0b; }
         .status-error { background-color: #ef4444; }
 
-        .flow-controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; } /* Issue 6 Fix */
-        .flow-control-buttons button { background: #2d2d2d; color: #9ca3af; border: none; padding: 2px 8px; font-size: 0.7rem; font-weight: bold; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; }
+        /* Issue 4 Fix: Flow controls styling */
+        .flow-controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+        .flow-control-buttons button { background: #2d2d2d; color: #9ca3af; border: none; padding: 0.5rem 0.75rem; font-size: 0.9rem; font-weight: bold; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; }
         .flow-control-buttons button:hover { background: #374151; color: #e5e7eb; }
 
         .call-stack-nav-controls { display: flex; justify-content: space-between; margin-top: auto; padding-top: 1rem; }
@@ -89,60 +93,32 @@
 <body class="bg-[#0e0e0e] text-white h-full flex flex-col overflow-hidden">
 
     <header class="application-header bg-[#181818] px-3 py-2 flex items-center justify-between flex-shrink-0 z-10">
-        <div class="flex items-center whitespace-nowrap">
-            <h1 class="text-[#b81830] text-2xl font-bold">Comp</h1>
-            <span class="text-gray-400 ml-3 text-sm">Service</span>
-        </div>
-        <nav class="flex-grow flex justify-end items-center">
-            <span class="text-gray-400 mr-4 text-sm font-semibold">Pages</span>
-            <div class="flex items-center gap-2">
-                <a href="#" class="text-white bg-[#b81830] hover:bg-[#a1152a] transition-colors px-4 py-2 rounded-md text-sm font-medium">Debugger</a>
-            </div>
-        </nav>
+        <div class="flex items-center whitespace-nowrap"><h1 class="text-[#b81830] text-2xl font-bold">Comp</h1><span class="text-gray-400 ml-3 text-sm">Service</span></div>
+        <nav class="flex-grow flex justify-end items-center"><span class="text-gray-400 mr-4 text-sm font-semibold">Pages</span><div class="flex items-center gap-2"><a href="#" class="text-white bg-[#b81830] hover:bg-[#a1152a] transition-colors px-4 py-2 rounded-md text-sm font-medium">Debugger</a></div></nav>
     </header>
 
     <main id="dashboard-container" class="flex-grow flex w-full overflow-hidden">
 
         <section id="logs-panel" class="dashboard-panel p-3 flex flex-col bg-[#181818]">
              <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                <div class="flex items-center gap-4">
-                    <h2 class="text-xl font-semibold whitespace-nowrap">Live Logs</h2>
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm text-gray-400">Websockets Status</span>
-                        <div id="ws-status-indicator" class="status-indicator-circle status-connecting"></div>
-                    </div>
-                </div>
-                <div class="panel-controls flex items-center gap-2">
-                    <button class="settings-toggle panel-button focus:outline-none" data-panel-id="logs-panel" title="Settings"><i class="fa-solid fa-gear text-sm"></i></button>
-                    <button class="reset-layout-button panel-button hidden focus:outline-none" title="Reset Size"><i class="fa-solid fa-arrows-rotate text-sm"></i></button>
-                </div>
+                <div class="flex items-center gap-4"><h2 class="text-xl font-semibold whitespace-nowrap">Live Logs</h2><div class="flex items-center gap-2"><span class="text-sm text-gray-400">Websockets Status</span><div id="ws-status-indicator" class="status-indicator-circle status-connecting"></div></div></div>
+                <div class="panel-controls flex items-center gap-2"><button class="settings-toggle panel-button focus:outline-none" data-panel-id="logs-panel" title="Settings"><i class="fa-solid fa-gear text-sm"></i></button><button class="reset-layout-button panel-button hidden focus:outline-none" title="Reset Size"><i class="fa-solid fa-arrows-rotate text-sm"></i></button></div>
             </div>
             <div class="panel-content-wrapper" data-panel-id="logs-panel">
                 <div class="panel-view main-content-view"><div id="logs-content-area" class="flex-grow"></div></div>
-                <div class="panel-view settings-view">
-                    <div class="flex justify-between items-center w-full">
-                        <h3 class="text-sm font-semibold text-gray-300">Settings</h3>
-                        <button class="settings-back-button panel-button text-sm flex items-center gap-1 focus:outline-none" data-panel-id="logs-panel">← Back</button>
-                    </div>
-                </div>
+                <div class="panel-view settings-view"><div class="flex justify-between items-center w-full"><h3 class="text-sm font-semibold text-gray-300">Settings</h3><button class="settings-back-button panel-button text-sm flex items-center gap-1 focus:outline-none" data-panel-id="logs-panel">← Back</button></div></div>
             </div>
         </section>
 
         <!-- Call Stack Panel -->
         <section id="stack-panel" class="dashboard-panel p-3 flex flex-col bg-[#0e0e0e]">
-            <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                <h2 class="text-xl font-semibold whitespace-nowrap">Call Stack</h2>
-                <div class="panel-controls flex items-center gap-2">
-                    <button class="settings-toggle panel-button focus:outline-none" data-panel-id="stack-panel" title="Settings"><i class="fa-solid fa-gear text-sm"></i></button>
-                    <button class="reset-layout-button panel-button hidden focus:outline-none" title="Reset Size"><i class="fa-solid fa-arrows-rotate text-sm"></i></button>
-                </div>
-            </div>
+            <div class="flex justify-between items-center mb-4 flex-shrink-0"><h2 class="text-xl font-semibold whitespace-nowrap">Call Stack</h2><div class="panel-controls flex items-center gap-2"><button class="settings-toggle panel-button focus:outline-none" data-panel-id="stack-panel" title="Settings"><i class="fa-solid fa-gear text-sm"></i></button><button class="reset-layout-button panel-button hidden focus:outline-none" title="Reset Size"><i class="fa-solid fa-arrows-rotate text-sm"></i></button></div></div>
             <div class="panel-content-wrapper" data-panel-id="stack-panel">
                 <div class="panel-view main-content-view p-4 pl-0 flex flex-col">
                     <h3 class="call-stack-title">Latest API Call</h3>
                     <p id="latest-api-call" class="font-mono text-gray-300 min-h-[1.5em] mb-4"></p>
                     
-                    <div class="call-stack-meta-grid">
+                    <div class="call-stack-meta-row">
                         <div class="call-stack-meta-item">
                             <div class="meta-title">Time</div>
                             <div id="api-call-time" class="meta-value">-</div>
@@ -150,6 +126,10 @@
                         <div class="call-stack-meta-item">
                             <div class="meta-title">STATUS</div>
                             <div id="api-call-status" class="meta-value">-</div>
+                        </div>
+                        <div id="api-call-error-container" class="call-stack-meta-item" style="display: none;">
+                            <div class="meta-title">Error</div>
+                            <div id="api-call-error" class="meta-value">-</div>
                         </div>
                     </div>
 
@@ -166,12 +146,7 @@
                         <button id="next-call-btn" class="call-stack-nav-button">Next Call →</button>
                     </div>
                 </div>
-                <div class="panel-view settings-view">
-                     <div class="flex justify-between items-center w-full">
-                        <h3 class="text-sm font-semibold text-gray-300">Settings</h3>
-                        <button class="settings-back-button panel-button text-sm flex items-center gap-1 focus:outline-none" data-panel-id="stack-panel">← Back</button>
-                    </div>
-                </div>
+                <div class="panel-view settings-view"><div class="flex justify-between items-center w-full"><h3 class="text-sm font-semibold text-gray-300">Settings</h3><button class="settings-back-button panel-button text-sm flex items-center gap-1 focus:outline-none" data-panel-id="stack-panel">← Back</button></div></div>
             </div>
         </section>
     </main>
@@ -193,6 +168,8 @@
                     latestApiCall: document.getElementById('latest-api-call'),
                     apiCallTime: document.getElementById('api-call-time'),
                     apiCallStatus: document.getElementById('api-call-status'),
+                    apiCallError: document.getElementById('api-call-error'),
+                    apiCallErrorContainer: document.getElementById('api-call-error-container'),
                     callStackFlow: document.getElementById('call-stack-flow'),
                     prevCallBtn: document.getElementById('prev-call-btn'),
                     nextCallBtn: document.getElementById('next-call-btn'),
@@ -258,6 +235,7 @@
                     if ((match = log.match(/-> Entering: (.*)/))) { const newNode = { name: match[1], children: [], logs: [], duration: 'N/A' }; currentNode.children.push(newNode); stack.push(newNode); } 
                     else if ((match = log.match(/<- Exiting: .* - (.*s)/))) { if (stack.length > 1) { const exitingNode = stack.pop(); exitingNode.duration = match[1] || 'N/A'; } } 
                     else if ((match = log.match(/<- POST .* - (\d+) - (.*s)/))) { root.statusCode = match[1] || 'N/A'; root.duration = match[2] || 'N/A'; } 
+                    else if ((match = log.match(/\| ERROR \| (.*)/))) { root.error = match[1].trim(); currentNode.logs.push(log); }
                     else if (!log.includes("-> POST")) { currentNode.logs.push(log); }
                 });
                 return { apiCall: apiCallMatch[1], callStack: root };
@@ -268,18 +246,27 @@
                 if (!callData) return;
                 this.elements.latestApiCall.textContent = callData.apiCall;
                 this.elements.apiCallTime.textContent = callData.callStack.duration;
+                
                 const status = callData.callStack.statusCode;
                 let statusClass = 'status-warn';
                 if (status >= 200 && status < 300) statusClass = 'status-ok';
                 if (status >= 500) statusClass = 'status-error';
                 this.elements.apiCallStatus.innerHTML = `<div class="status-circle ${statusClass}"></div> ${status}`;
+
+                if (callData.callStack.error) {
+                    this.elements.apiCallError.textContent = callData.callStack.error;
+                    this.elements.apiCallErrorContainer.style.display = 'block';
+                } else {
+                    this.elements.apiCallErrorContainer.style.display = 'none';
+                }
+
                 this.elements.callStackFlow.innerHTML = '';
                 if (callData.callStack) {
                     callData.callStack.children.forEach((childNode, i) => {
                         const stackElement = this.renderCallStackNode(childNode, `${i + 1}.`);
                         this.elements.callStackFlow.appendChild(stackElement);
                     });
-                     callData.callStack.logs.forEach(log => {
+                     callData.callStack.logs.filter(log => !log.includes("| ERROR |")).forEach(log => {
                         const logElement = document.createElement('div');
                         logElement.className = 'call-stack-log';
                         logElement.textContent = `[TOP LEVEL] ${log}`;
@@ -293,19 +280,19 @@
                 const hasContent = node.logs.length > 0 || node.children.length > 0;
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'call-stack-item';
-                const headerDiv = document.createElement('div');
-                headerDiv.className = 'call-stack-header';
-                headerDiv.innerHTML = `
-                    <div style="display: flex; align-items: baseline; flex-grow: 1;">
+                
+                // Issue 6 & 7 Fix: New SVG icon and redesigned stacked layout
+                itemDiv.innerHTML = `
+                    <div class="call-stack-header">
                         <span class="flow-prefix">${prefix}</span>
                         <span class="call-stack-name">${node.name}</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 1rem; flex-shrink: 0;">
+                    <div class="call-stack-footer">
                         <span class="call-stack-duration">${node.duration}</span>
-                        ${hasContent ? '<span class="expand-icon">▶</span>' : ''}
+                        ${hasContent ? `<svg class="expand-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4l4 4-4 4"></path></svg>` : ''}
                     </div>
                 `;
-                itemDiv.appendChild(headerDiv);
+
                 if (hasContent) {
                     const contentDiv = document.createElement('div');
                     contentDiv.className = 'call-stack-content';
@@ -317,9 +304,10 @@
                         contentDiv.appendChild(nestedDiv);
                     }
                     itemDiv.appendChild(contentDiv);
-                    headerDiv.addEventListener('click', () => {
+                    itemDiv.addEventListener('click', (e) => {
+                        e.stopPropagation();
                         contentDiv.classList.toggle('expanded');
-                        headerDiv.querySelector('.expand-icon')?.classList.toggle('expanded');
+                        itemDiv.querySelector('.expand-icon')?.classList.toggle('expanded');
                     });
                 }
                 return itemDiv;

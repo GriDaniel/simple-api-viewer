@@ -38,31 +38,33 @@
         ::-webkit-scrollbar-thumb { background: #b81830; border-radius: 3px; }
         * { scrollbar-width: thin; scrollbar-color: #b81830 #2d2d2d; }
 
-        /* Issue 2 Fix: Use CSS Grid on the container to make children full-width */
+        /* Issue 2 & 3 Fix: Refined grid and overflow settings */
         #logs-content-area {
             display: grid;
-            grid-template-columns: minmax(0, 1fr); /* Allow content to grow */
+            align-content: start; /* Packs grid items to the top */
+            overflow-y: scroll;  /* Vertical scrollbar is always present */
+            overflow-x: auto;    /* Horizontal scrollbar appears only when needed */
         }
 
-        /* Issue 1 Fix: Styling for individual, inline-prefixed log entries */
         .log-entry {
             display: flex;
             align-items: baseline;
             background-color: #0e0e0e;
-            padding: 0.2rem 0.5rem;
+             /* Issue 1 Fix: Tighter padding for denser logs */
+            padding: 0.1rem 0.5rem;
             font-family: monospace;
             font-size: 0.875rem;
         }
         .log-entry:nth-child(even) { background-color: #111111; }
         .log-prefix {
             flex-shrink: 0;
-            width: 100px; /* Consistent width for alignment */
+            width: 100px;
             font-weight: bold;
             color: #b81830;
             margin-right: 1rem;
         }
         .log-message {
-            white-space: pre; /* Use pre for whitespace but allow wrapping */
+            white-space: pre;
         }
         
         .status-indicator-circle {
@@ -109,7 +111,7 @@
             </div>
             <div class="panel-content-wrapper" data-panel-id="logs-panel">
                 <div class="panel-view main-content-view">
-                    <div id="logs-content-area" class="flex-grow overflow-auto p-0">
+                    <div id="logs-content-area" class="flex-grow">
                         <!-- Log content and status messages will be rendered here -->
                     </div>
                 </div>
@@ -254,7 +256,6 @@
                     this.state.postRequestCounter++;
                     const title = `POST #${this.state.postRequestCounter}`;
                     
-                    // Render each message from the buffer as its own line
                     this.state.postMessageBuffer.forEach(logLine => {
                         this.renderLogEntry(title, logLine);
                     });
@@ -265,7 +266,6 @@
                     if (this.state.isInsidePostBlock) {
                         this.state.postMessageBuffer.push(message);
                     } else {
-                        // Render raw logs immediately
                         this.renderLogEntry("Raw Log", message);
                     }
                 }
@@ -282,12 +282,6 @@
                 this.state.isLogAreaCleared = true;
             }
 
-            /**
-             * @method renderLogEntry
-             * @description Creates and appends a single formatted log entry to the log viewer.
-             * @param {string} prefix - The title for the log entry (e.g., "Raw Log", "POST #1").
-             * @param {string} message - The content of the log message.
-             */
             renderLogEntry(prefix, message) {
                 const entry = document.createElement('div');
                 entry.className = 'log-entry';
@@ -360,4 +354,4 @@
         document.addEventListener('DOMContentLoaded', () => new DashboardManager());
     </script>
 </body>
-</html>
+</html>```

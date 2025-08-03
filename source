@@ -6,10 +6,12 @@
     <title>Advanced Enterprise Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
     <style>
         body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; min-width: 450px; }
-        .gutter { background-color: #4a5568; transition: background-color 0.2s ease, opacity 0.3s ease; cursor: col-resize; }
+        .gutter { background-color: #4a5568; transition: background-color 0.2s ease, opacity 0.3s ease; }
+        .gutter.gutter-horizontal { cursor: col-resize; }
         .gutter:hover { background-color: #b81830; }
         .gutter-disabled { opacity: 0; pointer-events: none; }
         .dashboard-panel { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -74,8 +76,8 @@
         .call-stack-nav-button { background: none; border: none; color: #6b7280; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: color 0.2s ease; }
         .call-stack-nav-button:not(:disabled):hover { color: #d1d5db; }
         .call-stack-nav-button:disabled { color: #374151; cursor: not-allowed; }
-        #custom-tooltip { position: fixed; display: none; background-color: #1f2937; color: white; padding: 8px 12px; border-radius: 6px; font-size: 14px; z-index: 1000; pointer-events: none; max-width: 400px; text-align: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); border: 1px solid #374151; }
-        #custom-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #1f2937; }
+        #custom-tooltip { position: fixed; display: none; background-color: #a1152a; color: white; padding: 8px 12px; border-radius: 6px; font-size: 14px; z-index: 1000; pointer-events: none; max-width: 400px; text-align: center; }
+        #custom-tooltip .tooltip-arrow { content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #a1152a; }
     </style>
 </head>
 <body class="bg-[#0e0e0e] text-white h-full flex flex-col overflow-hidden">
@@ -102,7 +104,7 @@
             <div class="panel-content-wrapper" data-panel-id="stack-panel">
                 <div class="panel-view main-content-view p-4 pl-0 flex flex-col">
                     <h3 class="call-stack-title">Latest API Call</h3>
-                    <p id="latest-api-call" class="font-mono text-gray-300 min-h-[1.5em] mb-4"></p>
+                    <p id="latest-api-call" class="font-mono text-gray-300 min-h-[1.5em] mb-4" data-full-text=""></p>
                     <div class="call-stack-meta-row">
                         <div class="call-stack-meta-item"><div class="meta-title">Time</div><div id="api-call-time" class="meta-value">-</div></div>
                         <div class="call-stack-meta-item"><div class="meta-title">STATUS</div><div id="api-call-status" class="meta-value">-</div></div>
@@ -120,83 +122,9 @@
         </section>
     </main>
 
-    <div id="custom-tooltip" role="tooltip"></div>
+    <div id="custom-tooltip" role="tooltip"><span class="tooltip-text"></span><div class="tooltip-arrow"></div></div>
 
     <script>
-        class SplitPane {
-            constructor(elements, options = {}) {
-                this.elements = elements.map(el => typeof el === 'string' ? document.querySelector(el) : el);
-                this.sizes = options.sizes || [50, 50];
-                this.minSize = options.minSize || 100;
-                this.gutterSize = options.gutterSize || 8;
-                this.onDrag = options.onDrag || (() => {});
-                this.isDragging = false;
-                this.init();
-            }
-
-            init() {
-                const container = this.elements[0].parentElement;
-                const gutter = document.createElement('div');
-                gutter.className = 'gutter';
-                gutter.style.width = `${this.gutterSize}px`;
-                
-                container.insertBefore(gutter, this.elements[1]);
-                this.gutter = gutter;
-                this.container = container;
-                
-                this.setSizes(this.sizes);
-                this.attachEvents();
-            }
-
-            attachEvents() {
-                this.gutter.addEventListener('mousedown', this.startDrag.bind(this));
-                document.addEventListener('mousemove', this.drag.bind(this));
-                document.addEventListener('mouseup', this.endDrag.bind(this));
-            }
-
-            startDrag(e) {
-                e.preventDefault();
-                this.isDragging = true;
-                this.startX = e.clientX;
-                this.startWidths = this.elements.map(el => el.offsetWidth);
-                document.body.style.cursor = 'col-resize';
-                document.body.style.userSelect = 'none';
-            }
-
-            drag(e) {
-                if (!this.isDragging) return;
-                
-                const deltaX = e.clientX - this.startX;
-                const containerWidth = this.container.offsetWidth - this.gutterSize;
-                
-                const newWidth1 = this.startWidths[0] + deltaX;
-                const newWidth2 = this.startWidths[1] - deltaX;
-                
-                if (newWidth1 >= this.minSize && newWidth2 >= this.minSize) {
-                    const newSize1 = (newWidth1 / containerWidth) * 100;
-                    const newSize2 = (newWidth2 / containerWidth) * 100;
-                    this.setSizes([newSize1, newSize2]);
-                    this.onDrag();
-                }
-            }
-
-            endDrag() {
-                this.isDragging = false;
-                document.body.style.cursor = '';
-                document.body.style.userSelect = '';
-            }
-
-            setSizes(sizes) {
-                this.sizes = sizes;
-                this.elements[0].style.width = `${sizes[0]}%`;
-                this.elements[1].style.width = `${sizes[1]}%`;
-            }
-
-            getSizes() {
-                return this.sizes;
-            }
-        }
-
         class DashboardManager {
             constructor() {
                 this.config = { maxHistory: 10, defaultSizes: [65, 35], websocketUrl: "ws://127.0.0.1:8000/ws/logs" };
@@ -209,11 +137,13 @@
                     ['callStackFlow', document.getElementById('call-stack-flow')], ['prevCallBtn', document.getElementById('prev-call-btn')],
                     ['nextCallBtn', document.getElementById('next-call-btn')], ['tooltip', document.getElementById('custom-tooltip')]
                 ]);
-                this.tooltipTimeout = null;
+                this.throttledCheckLayout = this.throttle(this.checkLayout, 50);
+                this.handleTooltipHide = this.handleTooltipHide.bind(this);
                 this.init();
             }
 
             init() {
+                document.body.appendChild(this.elements.get('tooltip'));
                 this.setupSplitLayout();
                 this.setupEventListeners();
                 this.setupResizeObserver();
@@ -222,33 +152,38 @@
                 this.updateNavButtons();
             }
 
+            throttle(func, limit) {
+                let inThrottle;
+                return (...args) => {
+                    if (!inThrottle) {
+                        func.apply(this, args);
+                        inThrottle = true;
+                        setTimeout(() => inThrottle = false, limit);
+                    }
+                };
+            }
+
             setupSplitLayout() {
-                this.splitInstance = new SplitPane(['#logs-panel', '#stack-panel'], { 
+                this.splitInstance = Split(['#logs-panel', '#stack-panel'], { 
                     sizes: this.config.defaultSizes, 
                     minSize: 320, 
                     gutterSize: 8, 
-                    onDrag: () => this.checkLayout() 
+                    onDrag: this.throttledCheckLayout,
+                    onDragEnd: this.checkLayout
                 });
             }
 
             setupEventListeners() {
                 const container = this.elements.get('container');
                 container.addEventListener('click', this.handleClick.bind(this));
-                
-                // Enhanced tooltip events with better detection
-                document.addEventListener('mouseover', this.handleTooltipShow.bind(this));
-                document.addEventListener('mouseout', this.handleTooltipHide.bind(this));
-                document.addEventListener('mousemove', this.handleTooltipMove.bind(this));
+                container.addEventListener('mouseover', this.handleTooltipShow.bind(this));
             }
 
             setupResizeObserver() {
                 const container = this.elements.get('container');
                 new ResizeObserver(entries => {
                     const width = entries[0].contentRect.width;
-                    const gutter = container.querySelector('.gutter');
-                    if (gutter) {
-                        gutter.classList.toggle('gutter-disabled', width < 700);
-                    }
+                    container.querySelector('.gutter')?.classList.toggle('gutter-disabled', width < 700);
                     if (width < 700) this.resetLayout();
                 }).observe(container);
             }
@@ -364,3 +299,95 @@
                     div.appendChild(content);
                 }
                 return div;
+            }
+
+            createLogsSection(logs, title) {
+                const section = document.createElement('div');
+                section.className = 'call-stack-logs-section';
+                section.innerHTML = `<div class="call-stack-logs-title">${title}</div>`;
+                logs.forEach(log => {
+                    const logDiv = document.createElement('div');
+                    logDiv.className = 'call-stack-log';
+                    logDiv.textContent = log;
+                    section.appendChild(logDiv);
+                });
+                return section;
+            }
+
+            toggleAllFlowNodes(expand) {
+                this.elements.get('callStackFlow').querySelectorAll('.call-stack-content, .expand-icon').forEach(el => el.classList.toggle('expanded', expand));
+            }
+
+            handleClick(e) {
+                const button = e.target.closest('button');
+                if (button) {
+                    switch (button.id) {
+                        case 'prev-call-btn': if (this.state.currentHistoryIndex > 0) this.displayCall(--this.state.currentHistoryIndex); break;
+                        case 'next-call-btn': if (this.state.currentHistoryIndex < this.state.postHistory.length - 1) this.displayCall(++this.state.currentHistoryIndex); break;
+                        case 'expand-all-btn': this.toggleAllFlowNodes(true); break;
+                        case 'collapse-all-btn': this.toggleAllFlowNodes(false); break;
+                    }
+                    if (button.classList.contains('reset-layout-button')) this.resetLayout();
+                    if (button.classList.contains('settings-toggle') || button.classList.contains('settings-back-button')) {
+                        document.querySelector(`.panel-content-wrapper[data-panel-id="${button.dataset.panelId}"]`)?.classList.toggle('settings-active');
+                    }
+                } else {
+                    const item = e.target.closest('.call-stack-item');
+                    if (item) {
+                        item.querySelector('.call-stack-content')?.classList.toggle('expanded');
+                        item.querySelector('.expand-icon')?.classList.toggle('expanded');
+                    }
+                }
+            }
+            
+            handleTooltipShow(e) {
+                const target = e.target.closest('[data-full-text]');
+                if (!target || target.scrollWidth <= target.clientWidth) return;
+
+                const tooltip = this.elements.get('tooltip');
+                tooltip.querySelector('.tooltip-text').textContent = target.dataset.fullText;
+                
+                const rect = target.getBoundingClientRect();
+                tooltip.style.display = 'block';
+
+                const top = rect.top - tooltip.offsetHeight - 10;
+                const left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+                
+                tooltip.style.left = `${left}px`;
+                tooltip.style.top = `${top}px`;
+                
+                target.addEventListener('mouseleave', this.handleTooltipHide, { once: true });
+            }
+
+            handleTooltipHide() { this.elements.get('tooltip').style.display = 'none'; }
+
+            checkLayout = () => {
+                const isCustomized = Math.abs(this.splitInstance.getSizes()[0] - this.config.defaultSizes[0]) > 1;
+                document.querySelectorAll('.reset-layout-button').forEach(btn => btn.classList.toggle('hidden', !isCustomized));
+            }
+
+            resetLayout() { this.splitInstance.setSizes(this.config.defaultSizes); this.checkLayout(); }
+
+            updateNavButtons() {
+                this.elements.get('prevCallBtn').disabled = this.state.currentHistoryIndex <= 0;
+                this.elements.get('nextCallBtn').disabled = this.state.currentHistoryIndex >= this.state.postHistory.length - 1;
+            }
+
+            displaySystemMessage(message) {
+                this.elements.get('logsArea').innerHTML = `<div class="flex items-center justify-center h-full p-4"><p class="text-2xl font-bold text-gray-500">${message}</p></div>`;
+                this.state.isLogAreaCleared = true;
+            }
+
+            renderLogEntry(prefix, message) {
+                const logsArea = this.elements.get('logsArea');
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerHTML = `<span class="log-prefix">${prefix}</span><span class="log-message">${message}</span>`;
+                logsArea.appendChild(entry);
+                logsArea.scrollTop = logsArea.scrollHeight;
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => new DashboardManager());
+    </script>
+</body>
+</html>

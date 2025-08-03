@@ -53,12 +53,22 @@
         #call-stack-flow { overflow-y: auto; overflow-x: hidden; }
         .call-stack-title { color: #9ca3af; font-weight: bold; text-transform: uppercase; font-size: 0.9rem; }
         
-        /* Issue 7 Fix: Creative UI/UX redesign for function nodes */
         .call-stack-item { border: 1px solid #2d2d2d; border-radius: 6px; margin-bottom: 6px; background-color: #181818; border-left: 4px solid #b81830; cursor: pointer; transition: background-color 0.2s ease; padding: 10px; }
         .call-stack-item:hover { background-color: #2d2d2d; }
-        .call-stack-header { display: flex; align-items: baseline; }
-        .flow-prefix { color: #6b7280; font-weight: 600; margin-right: 0.75rem; }
-        .call-stack-name { font-weight: 600; color: #e5e7eb; overflow-wrap: break-word; } /* This now works due to layout change */
+        
+        /* FIX: Changed alignment and added gap for better multi-line handling */
+        .call-stack-header { display: flex; align-items: flex-start; gap: 0.75rem; }
+        .flow-prefix { color: #6b7280; font-weight: 600; /* margin-right removed in favor of gap */ }
+        
+        /* FIX: Added min-width and word-break to allow wrapping in flex container */
+        .call-stack-name { 
+            font-weight: 600; 
+            color: #e5e7eb; 
+            overflow-wrap: break-word; 
+            word-break: break-all; /* More aggressive breaking for long names */
+            min-width: 0; /* Allows flex item to shrink below its content size */
+        }
+
         .call-stack-footer { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-top: 4px; }
         .call-stack-duration { color: #9ca3af; font-size: 0.8rem; flex-shrink: 0; }
         .expand-icon { transition: transform 0.2s ease; color: #6b7280; flex-shrink: 0; width: 16px; height: 16px; }
@@ -70,7 +80,6 @@
         .call-stack-log { font-style: italic; color: #d1d5db; background-color: #0e0e0e; padding: 8px; border-radius: 4px; margin-bottom: 8px; overflow-wrap: break-word; white-space: pre-wrap; }
         .nested-calls { padding-left: 15px; margin-top: 8px; border-left: 2px solid #2d2d2d; }
 
-        /* Issue 1 Fix: Meta info on one line */
         .call-stack-meta-row { display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1.5rem; }
         .call-stack-meta-item .meta-title { color: #9ca3af; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 0.25rem; }
         .call-stack-meta-item .meta-value { color: #d1d5db; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
@@ -79,7 +88,6 @@
         .status-warn { background-color: #f59e0b; }
         .status-error { background-color: #ef4444; }
 
-        /* Issue 4 Fix: Flow controls styling */
         .flow-controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
         .flow-control-buttons button { background: #2d2d2d; color: #9ca3af; border: none; padding: 0.5rem 0.75rem; font-size: 0.9rem; font-weight: bold; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; }
         .flow-control-buttons button:hover { background: #374151; color: #e5e7eb; }
@@ -281,7 +289,7 @@
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'call-stack-item';
                 
-                // Issue 6 & 7 Fix: New SVG icon and redesigned stacked layout
+                // FIX: Changed the innerHTML generation to remove the now-unnecessary margin from the prefix span
                 itemDiv.innerHTML = `
                     <div class="call-stack-header">
                         <span class="flow-prefix">${prefix}</span>

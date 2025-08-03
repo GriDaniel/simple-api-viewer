@@ -10,11 +10,27 @@
 
     <style>
         body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; min-width: 450px; }
-        .gutter { background-color: #4a5568; transition: background-color 0.2s ease, opacity 0.3s ease; }
-        .gutter.gutter-horizontal { cursor: col-resize; }
+        .gutter { 
+            background-color: #4a5568; 
+            transition: background-color 0.15s ease; 
+            position: relative;
+        }
+        .gutter.gutter-horizontal { 
+            cursor: col-resize; 
+            width: 8px !important;
+        }
         .gutter:hover { background-color: #b81830; }
+        .gutter:active { background-color: #d1263a; }
         .gutter-disabled { opacity: 0; pointer-events: none; }
-        .dashboard-panel { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* Remove transitions during dragging for better performance */
+        .dashboard-panel { 
+            transition: none; 
+        }
+        .dashboard-panel.enable-transitions {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
         .panel-content-wrapper { position: relative; flex-grow: 1; overflow: hidden; background-color: inherit; }
         .panel-view { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 1rem 1rem 1rem 0rem; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         .main-content-view { transform: translateX(0); padding: 0; }
@@ -78,6 +94,15 @@
         .call-stack-nav-button:disabled { color: #374151; cursor: not-allowed; }
         #custom-tooltip { position: fixed; display: none; background-color: #1f2937; color: white; padding: 6px 10px; border-radius: 6px; font-size: 12px; z-index: 1000; pointer-events: none; max-width: 400px; text-align: left; white-space: normal; overflow-wrap: break-word; }
         #custom-tooltip .tooltip-arrow { content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #1f2937; }
+
+        /* Performance optimizations */
+        .gutter-horizontal {
+            will-change: transform;
+        }
+        
+        .dashboard-panel {
+            will-change: width;
+        }
     </style>
 </head>
 <body class="bg-[#0e0e0e] text-white h-full flex flex-col overflow-hidden">
@@ -128,7 +153,16 @@
         class DashboardManager {
             constructor() {
                 this.config = { maxHistory: 10, defaultSizes: [65, 35], websocketUrl: "ws://127.0.0.1:8000/ws/logs" };
-                this.state = { postHistory: [], currentHistoryIndex: -1, postRequestCounter: 0, postMessageBuffer: [], isInsidePostBlock: false, isLogAreaCleared: true };
+                this.state = { 
+                    postHistory: [], 
+                    currentHistoryIndex: -1, 
+                    postRequestCounter: 0, 
+                    postMessageBuffer: [], 
+                    isInsidePostBlock: false, 
+                    isLogAreaCleared: true,
+                    isDragging: false,
+                    layoutCheckTimeout: null
+                };
                 this.elements = new Map([
                     ['container', document.getElementById('dashboard-container')], ['logsArea', document.getElementById('logs-content-area')],
                     ['statusIndicator', document.getElementById('ws-status-indicator')], ['latestApiCall', document.getElementById('latest-api-call')],
@@ -138,6 +172,7 @@
                     ['nextCallBtn', document.getElementById('next-call-btn')], ['tooltip', document.getElementById('custom-tooltip')]
                 ]);
                 this.handleTooltipHide = this.handleTooltipHide.bind(this);
+                this.debouncedCheckLayout = this.debounce(this.checkLayout.bind(this), 100);
                 this.init();
             }
 
@@ -151,12 +186,50 @@
                 this.updateNavButtons();
             }
 
+            debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
             setupSplitLayout() {
                 this.splitInstance = Split(['#logs-panel', '#stack-panel'], { 
                     sizes: this.config.defaultSizes, 
                     minSize: 320, 
-                    gutterSize: 8, 
-                    onDragEnd: this.checkLayout.bind(this)
+                    gutterSize: 8,
+                    onDrag: () => {
+                        if (!this.state.isDragging) {
+                            this.state.isDragging = true;
+                            // Disable transitions during drag for better performance
+                            document.querySelectorAll('.dashboard-panel').forEach(panel => {
+                                panel.classList.remove('enable-transitions');
+                            });
+                        }
+                    },
+                    onDragEnd: () => {
+                        this.state.isDragging = false;
+                        
+                        // Re-enable transitions after a brief delay
+                        setTimeout(() => {
+                            document.querySelectorAll('.dashboard-panel').forEach(panel => {
+                                panel.classList.add('enable-transitions');
+                            });
+                        }, 50);
+                        
+                        // Use debounced layout check to avoid performance issues
+                        this.debouncedCheckLayout();
+                    }
+                });
+                
+                // Initially enable transitions
+                document.querySelectorAll('.dashboard-panel').forEach(panel => {
+                    panel.classList.add('enable-transitions');
                 });
             }
 
@@ -164,13 +237,32 @@
                 const container = this.elements.get('container');
                 container.addEventListener('click', this.handleClick.bind(this));
                 container.addEventListener('mouseover', this.handleTooltipShow.bind(this));
+                
+                // Add mouse event optimizations for better dragging performance
+                document.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('gutter')) {
+                        // Optimize for dragging
+                        document.body.style.userSelect = 'none';
+                        document.body.style.pointerEvents = 'none';
+                        e.target.style.pointerEvents = 'auto';
+                    }
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    // Restore normal behavior
+                    document.body.style.userSelect = '';
+                    document.body.style.pointerEvents = '';
+                });
             }
 
             setupResizeObserver() {
                 const container = this.elements.get('container');
                 new ResizeObserver(entries => {
                     const width = entries[0].contentRect.width;
-                    container.querySelector('.gutter')?.classList.toggle('gutter-disabled', width < 700);
+                    const gutter = container.querySelector('.gutter');
+                    if (gutter) {
+                        gutter.classList.toggle('gutter-disabled', width < 700);
+                    }
                     if (width < 700) this.resetLayout();
                 }).observe(container);
             }
@@ -279,97 +371,4 @@
                     if (node.children.length > 0) {
                         const nested = document.createElement('div');
                         nested.className = 'nested-calls';
-                        node.children.forEach((child, i) => nested.appendChild(this.createCallNode(child, `${prefix}${i + 1}.`)));
-                        wrapper.appendChild(nested);
-                    }
-                    content.appendChild(wrapper);
-                    div.appendChild(content);
-                }
-                return div;
-            }
-
-            createLogsSection(logs, title) {
-                const section = document.createElement('div');
-                section.className = 'call-stack-logs-section';
-                section.innerHTML = `<div class="call-stack-logs-title">${title}</div>`;
-                logs.forEach(log => {
-                    const logDiv = document.createElement('div');
-                    logDiv.className = 'call-stack-log';
-                    logDiv.textContent = log;
-                    section.appendChild(logDiv);
-                });
-                return section;
-            }
-
-            toggleAllFlowNodes(expand) {
-                this.elements.get('callStackFlow').querySelectorAll('.call-stack-content, .expand-icon').forEach(el => el.classList.toggle('expanded', expand));
-            }
-
-            handleClick(e) {
-                const button = e.target.closest('button');
-                if (button) {
-                    switch (button.id) {
-                        case 'prev-call-btn': if (this.state.currentHistoryIndex > 0) this.displayCall(--this.state.currentHistoryIndex); break;
-                        case 'next-call-btn': if (this.state.currentHistoryIndex < this.state.postHistory.length - 1) this.displayCall(++this.state.currentHistoryIndex); break;
-                        case 'expand-all-btn': this.toggleAllFlowNodes(true); break;
-                        case 'collapse-all-btn': this.toggleAllFlowNodes(false); break;
-                    }
-                    if (button.classList.contains('reset-layout-button')) this.resetLayout();
-                    if (button.classList.contains('settings-toggle') || button.classList.contains('settings-back-button')) {
-                        document.querySelector(`.panel-content-wrapper[data-panel-id="${button.dataset.panelId}"]`)?.classList.toggle('settings-active');
-                    }
-                } else {
-                    const item = e.target.closest('.call-stack-item');
-                    if (item) {
-                        item.querySelector('.call-stack-content')?.classList.toggle('expanded');
-                        item.querySelector('.expand-icon')?.classList.toggle('expanded');
-                    }
-                }
-            }
-            
-            handleTooltipShow(e) {
-                const target = e.target.closest('[data-full-text]');
-                if (!target || target.scrollWidth <= target.clientWidth) return;
-                const tooltip = this.elements.get('tooltip');
-                tooltip.querySelector('.tooltip-text').textContent = target.dataset.fullText;
-                tooltip.style.display = 'block';
-                const rect = target.getBoundingClientRect();
-                const top = rect.top - tooltip.offsetHeight - 10;
-                const left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
-                tooltip.style.left = `${Math.max(5, left)}px`;
-                tooltip.style.top = `${Math.max(5, top)}px`;
-                target.addEventListener('mouseleave', this.handleTooltipHide, { once: true });
-            }
-
-            handleTooltipHide() { this.elements.get('tooltip').style.display = 'none'; }
-
-            checkLayout() {
-                const isCustomized = Math.abs(this.splitInstance.getSizes()[0] - this.config.defaultSizes[0]) > 1;
-                document.querySelectorAll('.reset-layout-button').forEach(btn => btn.classList.toggle('hidden', !isCustomized));
-            }
-
-            resetLayout() { this.splitInstance.setSizes(this.config.defaultSizes); this.checkLayout(); }
-
-            updateNavButtons() {
-                this.elements.get('prevCallBtn').disabled = this.state.currentHistoryIndex <= 0;
-                this.elements.get('nextCallBtn').disabled = this.state.currentHistoryIndex >= this.state.postHistory.length - 1;
-            }
-
-            displaySystemMessage(message) {
-                this.elements.get('logsArea').innerHTML = `<div class="flex items-center justify-center h-full p-4"><p class="text-2xl font-bold text-gray-500">${message}</p></div>`;
-                this.state.isLogAreaCleared = true;
-            }
-
-            renderLogEntry(prefix, message) {
-                const logsArea = this.elements.get('logsArea');
-                const entry = document.createElement('div');
-                entry.className = 'log-entry';
-                entry.innerHTML = `<span class="log-prefix">${prefix}</span><span class="log-message">${message}</span>`;
-                logsArea.appendChild(entry);
-                logsArea.scrollTop = logsArea.scrollHeight;
-            }
-        }
-        document.addEventListener('DOMContentLoaded', () => new DashboardManager());
-    </script>
-</body>
-</html>
+                        node.children.forEach((child, i) => neste

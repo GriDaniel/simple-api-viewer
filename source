@@ -1,4 +1,11 @@
-<!DOCTYPE html>
+/* Improved log styling with better visual separation */
+        .call-stack-logs-section {
+            background-color: #0a0a0a;
+            border: 1px solid #2d2d2d;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 12px;
+        }<!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
@@ -115,26 +122,34 @@
         .expand-icon { transition: transform 0.2s ease; color: #9ca3af; flex-shrink: 0; width: 16px; height: 16px; }
         .expand-icon.expanded { transform: rotate(90deg); }
 
-        /* FIXED: Prevent layout shift on expand */
-        .call-stack-content { 
-            max-height: 0; 
-            overflow: hidden; 
-            transition: max-height 0.3s ease-out; 
-            padding-left: 0; /* Reset padding */
-            position: relative; /* Ensure proper containment */
+        /* Enhanced nested calls styling */
+        .nested-calls { 
+            padding-left: 20px; 
+            margin-top: 12px; 
+            border-left: 3px solid #374151; 
+            position: relative;
         }
-        .call-stack-content.expanded { 
-            max-height: 2000px; /* Increased for larger content */
-            margin-top: 8px; 
+        
+        .nested-calls::before {
+            content: '';
+            position: absolute;
+            left: -3px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, #b81830, #6b7280);
+            border-radius: 2px;
         }
-
-        /* Improved log styling with better visual separation */
-        .call-stack-logs-section {
-            background-color: #0a0a0a;
-            border: 1px solid #2d2d2d;
-            border-radius: 6px;
-            padding: 8px;
-            margin-bottom: 12px;
+        
+        /* Nested items get slightly different styling */
+        .nested-calls .call-stack-item {
+            background-color: #151515;
+            border-left-color: #6b7280;
+            margin-bottom: 6px;
+        }
+        
+        .nested-calls .call-stack-item:hover {
+            background-color: #1a1a1a;
         }
         
         .call-stack-logs-title {
@@ -349,6 +364,9 @@
                 // Event delegation
                 this.container.addEventListener('click', this.handleClick.bind(this));
                 
+                // Tooltip handling
+                this.setupTooltips();
+                
                 // Responsive handling
                 new ResizeObserver(entries => {
                     const width = entries[0].contentRect.width;
@@ -365,6 +383,50 @@
                 this.connectWebSocket();
                 this.displaySystemMessage("CONNECTING...");
                 this.updateNavButtons();
+            }
+
+            setupTooltips() {
+                // Handle tooltip creation and management
+                document.addEventListener('mouseenter', (e) => {
+                    const target = e.target;
+                    if (target.id === 'latest-api-call' || target.classList.contains('call-stack-name')) {
+                        this.showTooltip(target);
+                    }
+                }, true);
+
+                document.addEventListener('mouseleave', (e) => {
+                    const target = e.target;
+                    if (target.id === 'latest-api-call' || target.classList.contains('call-stack-name')) {
+                        this.hideTooltip(target);
+                    }
+                }, true);
+            }
+
+            showTooltip(element) {
+                // Only show tooltip if text is truncated
+                if (element.scrollWidth <= element.clientWidth) return;
+                
+                let tooltip = element.querySelector('.tooltip');
+                if (!tooltip) {
+                    tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    tooltip.textContent = element.textContent;
+                    element.appendChild(tooltip);
+                }
+                
+                setTimeout(() => tooltip.classList.add('show'), 50);
+            }
+
+            hideTooltip(element) {
+                const tooltip = element.querySelector('.tooltip');
+                if (tooltip) {
+                    tooltip.classList.remove('show');
+                    setTimeout(() => {
+                        if (tooltip.parentNode) {
+                            tooltip.parentNode.removeChild(tooltip);
+                        }
+                    }, 200);
+                }
             }
 
             connectWebSocket() {

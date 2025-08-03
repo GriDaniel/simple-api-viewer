@@ -38,18 +38,20 @@
         .status-connected { background-color: #22c55e; }
         .status-disconnected { background-color: #ef4444; }
         #call-stack-flow { overflow-y: auto; overflow-x: hidden; }
-        .call-stack-title { color: #9ca3af; font-weight: bold; text-transform: uppercase; font-size: 0.9rem; }
+        .call-stack-title { color: #9ca3af; font-weight: bold; text-transform: uppercase; font-size: 16px; }
         .call-stack-item { border: 1px solid #2d2d2d; border-radius: 8px; margin-bottom: 8px; background-color: #181818; border-left: 4px solid #b81830; cursor: pointer; transition: all 0.2s ease; padding: 12px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);}
         .call-stack-item:hover { background-color: #202020; border-left-color: #d1263a; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);}
         .call-stack-header { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 6px; }
         .flow-prefix { color: #6b7280; font-weight: 700; flex-shrink: 0; background-color: #2d2d2d; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; min-width: 24px; text-align: center; }
-        .call-stack-name { font-weight: 600; color: #e5e7eb; flex: 1; overflow-wrap: break-word; word-wrap: break-word; line-height: 1.4; font-size: 0.95rem; }
+        .call-stack-name { font-weight: 600; color: #e5e7eb; flex: 1; line-height: 1.4; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
         .call-stack-footer { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; }
-        .call-stack-duration { color: #22c55e; font-size: 0.8rem; flex-shrink: 0; font-weight: 600; background-color: rgba(34, 197, 94, 0.1); padding: 2px 6px; border-radius: 4px; }
-        .expand-icon { transition: transform 0.2s ease; color: #9ca3af; flex-shrink: 0; width: 16px; height: 16px; }
+        .call-stack-duration { font-size: 0.8rem; flex-shrink: 0; font-weight: 600; padding: 2px 6px; border-radius: 4px; background-color: rgba(34, 197, 94, 0.1); color: #22c55e; }
+        .call-stack-duration.duration-error { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        .expand-icon { transition: transform 0.3s ease-out; color: #9ca3af; flex-shrink: 0; width: 16px; height: 16px; }
         .expand-icon.expanded { transform: rotate(90deg); }
-        .call-stack-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; padding-left: 0; position: relative; }
-        .call-stack-content.expanded { max-height: 2000px; margin-top: 8px; }
+        .call-stack-content { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.35s ease-out, margin-top 0.35s ease-out; }
+        .call-stack-content > div { overflow: hidden; }
+        .call-stack-content.expanded { grid-template-rows: 1fr; margin-top: 8px; }
         .call-stack-logs-section { background-color: #0a0a0a; border: 1px solid #2d2d2d; border-radius: 6px; padding: 8px; margin-bottom: 12px; }
         .call-stack-logs-title { color: #9ca3af; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #2d2d2d; letter-spacing: 0.5px; }
         .call-stack-log { font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.75rem; color: #d1d5db; background-color: #111111; padding: 6px 8px; border-radius: 4px; margin-bottom: 4px; overflow-wrap: break-word; white-space: pre-wrap; border-left: 2px solid #374151; line-height: 1.3; }
@@ -59,8 +61,9 @@
         .nested-calls .call-stack-item { background-color: #151515; border-left-color: #6b7280; margin-bottom: 6px; }
         .nested-calls .call-stack-item:hover { background-color: #1a1a1a; }
         .call-stack-meta-row { display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1.5rem; }
-        .call-stack-meta-item .meta-title { color: #9ca3af; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 0.25rem; }
-        .call-stack-meta-item .meta-value { color: #d1d5db; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+        .call-stack-meta-item .meta-title { color: #9ca3af; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 0.25rem; }
+        .call-stack-meta-item .meta-value { color: #d1d5db; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; font-size: 14px; }
+        #latest-api-call { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .status-circle { width: 10px; height: 10px; border-radius: 50%; }
         .status-ok { background-color: #22c55e; }
         .status-warn { background-color: #f59e0b; }
@@ -73,6 +76,8 @@
         .call-stack-nav-button { background: none; border: none; color: #6b7280; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: color 0.2s ease; }
         .call-stack-nav-button:not(:disabled):hover { color: #d1d5db; }
         .call-stack-nav-button:disabled { color: #374151; cursor: not-allowed; }
+        #custom-tooltip { position: absolute; display: none; background-color: #a1152a; color: white; padding: 8px 12px; border-radius: 6px; font-size: 14px; z-index: 1000; pointer-events: none; max-width: 400px; text-align: center; }
+        #custom-tooltip .tooltip-arrow { content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #a1152a; }
     </style>
 </head>
 <body class="bg-[#0e0e0e] text-white h-full flex flex-col overflow-hidden">
@@ -117,38 +122,21 @@
         </section>
     </main>
 
+    <div id="custom-tooltip" role="tooltip"><div class="tooltip-arrow"></div></div>
+
     <script>
         class DashboardManager {
             constructor() {
-                this.config = {
-                    maxHistory: 10,
-                    defaultSizes: [65, 35],
-                    websocketUrl: "ws://127.0.0.1:8000/ws/logs",
-                };
-
-                this.state = {
-                    postHistory: [],
-                    currentHistoryIndex: -1,
-                    postRequestCounter: 0,
-                    postMessageBuffer: [],
-                    isInsidePostBlock: false,
-                    isLogAreaCleared: true,
-                };
-
+                this.config = { maxHistory: 10, defaultSizes: [65, 35], websocketUrl: "ws://127.0.0.1:8000/ws/logs" };
+                this.state = { postHistory: [], currentHistoryIndex: -1, postRequestCounter: 0, postMessageBuffer: [], isInsidePostBlock: false, isLogAreaCleared: true };
                 this.elements = new Map([
-                    ['container', document.getElementById('dashboard-container')],
-                    ['logsArea', document.getElementById('logs-content-area')],
-                    ['statusIndicator', document.getElementById('ws-status-indicator')],
-                    ['latestApiCall', document.getElementById('latest-api-call')],
-                    ['apiCallTime', document.getElementById('api-call-time')],
-                    ['apiCallStatus', document.getElementById('api-call-status')],
-                    ['apiCallError', document.getElementById('api-call-error')],
-                    ['apiCallErrorContainer', document.getElementById('api-call-error-container')],
-                    ['callStackFlow', document.getElementById('call-stack-flow')],
-                    ['prevCallBtn', document.getElementById('prev-call-btn')],
-                    ['nextCallBtn', document.getElementById('next-call-btn')],
+                    ['container', document.getElementById('dashboard-container')], ['logsArea', document.getElementById('logs-content-area')],
+                    ['statusIndicator', document.getElementById('ws-status-indicator')], ['latestApiCall', document.getElementById('latest-api-call')],
+                    ['apiCallTime', document.getElementById('api-call-time')], ['apiCallStatus', document.getElementById('api-call-status')],
+                    ['apiCallError', document.getElementById('api-call-error')], ['apiCallErrorContainer', document.getElementById('api-call-error-container')],
+                    ['callStackFlow', document.getElementById('call-stack-flow')], ['prevCallBtn', document.getElementById('prev-call-btn')],
+                    ['nextCallBtn', document.getElementById('next-call-btn')], ['tooltip', document.getElementById('custom-tooltip')]
                 ]);
-
                 this.init();
             }
 
@@ -162,24 +150,21 @@
             }
 
             setupSplitLayout() {
-                this.splitInstance = Split(['#logs-panel', '#stack-panel'], {
-                    sizes: this.config.defaultSizes,
-                    minSize: 320,
-                    gutterSize: 8,
-                    onDrag: () => this.checkLayout(),
-                });
+                this.splitInstance = Split(['#logs-panel', '#stack-panel'], { sizes: this.config.defaultSizes, minSize: 320, gutterSize: 8, onDrag: () => this.checkLayout() });
             }
 
             setupEventListeners() {
-                this.elements.get('container').addEventListener('click', this.handleClick.bind(this));
+                const container = this.elements.get('container');
+                container.addEventListener('click', this.handleClick.bind(this));
+                container.addEventListener('mouseover', this.handleTooltipShow.bind(this));
+                container.addEventListener('mouseout', this.handleTooltipHide.bind(this));
             }
 
             setupResizeObserver() {
                 const container = this.elements.get('container');
                 new ResizeObserver(entries => {
                     const width = entries[0].contentRect.width;
-                    const gutter = container.querySelector('.gutter');
-                    gutter?.classList.toggle('gutter-disabled', width < 700);
+                    container.querySelector('.gutter')?.classList.toggle('gutter-disabled', width < 700);
                     if (width < 700) this.resetLayout();
                 }).observe(container);
             }
@@ -198,27 +183,15 @@
             }
 
             handleWebSocketMessage(message) {
-                if (this.state.isLogAreaCleared) {
-                    this.elements.get('logsArea').innerHTML = '';
-                    this.state.isLogAreaCleared = false;
-                }
-
-                if (message.includes("-> POST")) {
-                    this.state.isInsidePostBlock = true;
-                    this.state.postMessageBuffer = [message];
-                } else if (message.includes("<- POST")) {
-                    this.state.postMessageBuffer.push(message);
-                    this.processPostBlock();
-                    this.state.isInsidePostBlock = false;
-                } else {
-                    this.state.isInsidePostBlock ? this.state.postMessageBuffer.push(message) : this.renderLogEntry("Raw Log", message);
-                }
+                if (this.state.isLogAreaCleared) { this.elements.get('logsArea').innerHTML = ''; this.state.isLogAreaCleared = false; }
+                if (message.includes("-> POST")) { this.state.isInsidePostBlock = true; this.state.postMessageBuffer = [message]; }
+                else if (message.includes("<- POST")) { this.state.postMessageBuffer.push(message); this.processPostBlock(); this.state.isInsidePostBlock = false; }
+                else { this.state.isInsidePostBlock ? this.state.postMessageBuffer.push(message) : this.renderLogEntry("Raw Log", message); }
             }
 
             processPostBlock() {
                 const title = `POST #${++this.state.postRequestCounter}`;
                 this.state.postMessageBuffer.forEach(log => this.renderLogEntry(title, log));
-                
                 const callData = this.parseCallStack(this.state.postMessageBuffer);
                 if (callData) {
                     this.state.postHistory.push(callData);
@@ -231,46 +204,40 @@
             parseCallStack(logs) {
                 const apiMatch = logs[0].match(/POST (\/\S+)/);
                 if (!apiMatch) return null;
-
-                const root = { name: 'POST Request', children: [], logs: [], duration: 'N/A' };
+                const root = { name: 'POST Request', children: [], logs: [], duration: 'N/A', hasError: false };
                 const stack = [root];
-
                 logs.forEach(log => {
                     const current = stack[stack.length - 1];
                     let match;
-
+                    if (log.includes("Raised")) current.hasError = true;
                     if ((match = log.match(/-> Entering: (.*)/))) {
-                        stack.push({ name: match[1], children: [], logs: [], duration: 'N/A' });
-                        current.children.push(stack[stack.length - 1]);
+                        const newNode = { name: match[1], children: [], logs: [], duration: 'N/A', hasError: false };
+                        current.children.push(newNode);
+                        stack.push(newNode);
                     } else if ((match = log.match(/<- Exiting: .* - (.*s)/))) {
-                        if (stack.length > 1) stack.pop().duration = match[1] || 'N/A';
-                    } else if ((match = log.match(/<- POST .* - (\d+) - (.*s)/))) {
-                        [root.statusCode, root.duration] = [match[1], match[2]];
+                        if (stack.length > 1) { const exitedNode = stack.pop(); exitedNode.duration = match[1] || 'N/A'; if (exitedNode.hasError) stack[stack.length - 1].hasError = true; }
+                    } else if ((match = log.match(/<- POST .* - (\d+) - (.*s)/))) { [root.statusCode, root.duration] = [match[1], match[2]];
                     } else if ((match = log.match(/\| ERROR \| (.*)/))) {
-                        root.error = match[1].trim();
+                        const errorParts = match[1].split(': ');
+                        root.error = (errorParts.length > 1 ? errorParts.slice(1).join(': ') : match[1]).trim();
                         current.logs.push(log);
-                    } else if (!log.includes("-> POST")) {
-                        current.logs.push(log);
-                    }
+                    } else if (!log.includes("-> POST")) { current.logs.push(log); }
                 });
-
                 return { apiCall: apiMatch[1], callStack: root };
             }
 
             displayCall(index) {
                 const data = this.state.postHistory[index];
                 if (!data) return;
-
-                this.elements.get('latestApiCall').textContent = data.apiCall;
+                const apiCallEl = this.elements.get('latestApiCall');
+                apiCallEl.textContent = data.apiCall;
+                apiCallEl.dataset.fullText = data.apiCall;
                 this.elements.get('apiCallTime').textContent = data.callStack.duration;
-
                 const status = data.callStack.statusCode;
                 const statusClass = status >= 500 ? 'status-error' : (status >= 200 && status < 300) ? 'status-ok' : 'status-warn';
                 this.elements.get('apiCallStatus').innerHTML = `<div class="status-circle ${statusClass}"></div> ${status}`;
-
                 this.elements.get('apiCallErrorContainer').style.display = data.callStack.error ? 'block' : 'none';
                 this.elements.get('apiCallError').textContent = data.callStack.error || '-';
-
                 this.renderCallStack(data.callStack);
                 this.updateNavButtons();
             }
@@ -279,13 +246,9 @@
                 const flow = this.elements.get('callStackFlow');
                 flow.innerHTML = '';
                 const fragment = document.createDocumentFragment();
-
                 stack.children.forEach((node, i) => fragment.appendChild(this.createCallNode(node, `${i + 1}.`)));
-
                 const topLogs = stack.logs.filter(log => !log.includes("| ERROR |"));
-                if (topLogs.length > 0) {
-                    fragment.appendChild(this.createLogsSection(topLogs, `Top Level Logs (${topLogs.length})`));
-                }
+                if (topLogs.length > 0) fragment.appendChild(this.createLogsSection(topLogs, `Top Level Logs (${topLogs.length})`));
                 flow.appendChild(fragment);
             }
             
@@ -296,23 +259,24 @@
                 div.innerHTML = `
                     <div class="call-stack-header">
                         <span class="flow-prefix">${prefix}</span>
-                        <span class="call-stack-name">${node.name}</span>
+                        <span class="call-stack-name" data-full-text="${node.name}">${node.name}</span>
                     </div>
                     <div class="call-stack-footer">
-                        <span class="call-stack-duration">${node.duration}</span>
+                        <span class="call-stack-duration ${node.hasError ? 'duration-error' : ''}">${node.duration}</span>
                         ${hasContent ? '<svg class="expand-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4l4 4-4 4"></path></svg>' : ''}
                     </div>`;
-
                 if (hasContent) {
                     const content = document.createElement('div');
                     content.className = 'call-stack-content';
-                    if (node.logs.length > 0) content.appendChild(this.createLogsSection(node.logs, `Logs (${node.logs.length})`));
+                    const wrapper = document.createElement('div');
+                    if (node.logs.length > 0) wrapper.appendChild(this.createLogsSection(node.logs, `Logs (${node.logs.length})`));
                     if (node.children.length > 0) {
                         const nested = document.createElement('div');
                         nested.className = 'nested-calls';
                         node.children.forEach((child, i) => nested.appendChild(this.createCallNode(child, `${prefix}${i + 1}.`)));
-                        content.appendChild(nested);
+                        wrapper.appendChild(nested);
                     }
+                    content.appendChild(wrapper);
                     div.appendChild(content);
                 }
                 return div;
@@ -346,8 +310,7 @@
                     }
                     if (button.classList.contains('reset-layout-button')) this.resetLayout();
                     if (button.classList.contains('settings-toggle') || button.classList.contains('settings-back-button')) {
-                        const panelId = button.dataset.panelId;
-                        document.querySelector(`.panel-content-wrapper[data-panel-id="${panelId}"]`)?.classList.toggle('settings-active');
+                        document.querySelector(`.panel-content-wrapper[data-panel-id="${button.dataset.panelId}"]`)?.classList.toggle('settings-active');
                     }
                 } else {
                     const item = e.target.closest('.call-stack-item');
@@ -357,16 +320,28 @@
                     }
                 }
             }
+            
+            handleTooltipShow(e) {
+                const target = e.target.closest('[data-full-text]');
+                if (!target || target.scrollWidth <= target.clientWidth) return;
+                const tooltip = this.elements.get('tooltip');
+                tooltip.textContent = target.dataset.fullText;
+                tooltip.appendChild(document.querySelector('.tooltip-arrow').cloneNode(true));
+                const rect = target.getBoundingClientRect();
+                tooltip.style.display = 'block';
+                const top = rect.top - tooltip.offsetHeight - 10;
+                const left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+                tooltip.style.transform = `translate(${left}px, ${top}px)`;
+            }
+
+            handleTooltipHide() { this.elements.get('tooltip').style.display = 'none'; }
 
             checkLayout() {
                 const isCustomized = Math.abs(this.splitInstance.getSizes()[0] - this.config.defaultSizes[0]) > 1;
                 document.querySelectorAll('.reset-layout-button').forEach(btn => btn.classList.toggle('hidden', !isCustomized));
             }
 
-            resetLayout() {
-                this.splitInstance.setSizes(this.config.defaultSizes);
-                this.checkLayout();
-            }
+            resetLayout() { this.splitInstance.setSizes(this.config.defaultSizes); this.checkLayout(); }
 
             updateNavButtons() {
                 this.elements.get('prevCallBtn').disabled = this.state.currentHistoryIndex <= 0;
@@ -387,8 +362,7 @@
                 logsArea.scrollTop = logsArea.scrollHeight;
             }
         }
-
         document.addEventListener('DOMContentLoaded', () => new DashboardManager());
     </script>
 </body>
-</html>```
+</html>

@@ -1,0 +1,61 @@
+Function-Level:
+Naming:
+
+Verb + noun: calculate_tax(), validate_email()
+Boolean functions: is_valid(), has_permission()
+No abbreviations: user not usr
+
+Structure:
+
+≤3 parameters (use objects for more)
+≤20 lines
+Single return type
+Early returns, no deep nesting
+
+Class-Level:
+Design:
+
+One responsibility
+Noun names: User, PaymentProcessor
+No "Manager/Helper/Utility" suffixes
+Public methods first, private last
+
+State:
+
+Minimal mutable state
+Constructor does setup only, no heavy work
+
+Code Structure:
+Clarity:
+
+Guard clauses over nested ifs
+Variables declared near usage
+≤2 levels of nesting
+No magic numbers/strings
+
+Formatting:
+
+Blank lines separate logical blocks
+Consistent spacing
+≤88 character lines
+
+Comments:
+
+Explain WHY, not WHAT
+Complex business logic only
+No obvious comments
+No dead code
+
+Error Handling:
+
+Fail fast with clear messages
+Specific exceptions
+No silent failures
+
+Dependencies:
+
+Inject, don't hardcode
+No circular imports
+Pure functions when possible
+
+Core Principle: Code should read like well-written prose - clear, direct, and requiring no mental translation.
